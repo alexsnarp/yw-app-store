@@ -4,6 +4,7 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.*;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
 import android.net.*;
 import android.os.*;
