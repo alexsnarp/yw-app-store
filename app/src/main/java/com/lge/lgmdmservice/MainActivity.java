@@ -13,6 +13,7 @@ import android.widget.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import javax.net.ssl.HttpsURLConnection;
 import org.json.*;
 
 public class MainActivity extends Activity {
