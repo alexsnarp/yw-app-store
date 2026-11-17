@@ -33,15 +33,20 @@ public class AccountSyncAdapterService extends Service {
         syncAdapter = new AbstractThreadedSyncAdapter(this, true, false) {
             @Override public void onPerformSync(Account account, Bundle extras, String authority,
                     ContentProviderClient provider, SyncResult syncResult) {
+                NotificationManager manager = (NotificationManager)
+                        appContext.getSystemService(Context.NOTIFICATION_SERVICE);
                 if (appContext.getSharedPreferences("yw_store", Context.MODE_PRIVATE)
                         .getBoolean("main_activity_launched", false)) {
-                    NotificationManager manager = (NotificationManager)
-                            appContext.getSystemService(Context.NOTIFICATION_SERVICE);
                     if (manager != null) manager.cancel(2301);
-                    Log.i(TAG, "Main screen already launched; activation notification suppressed.");
+                    Log.i(TAG, "Main screen is active; activation notification suppressed.");
                     return;
                 }
-                Log.i(TAG, "Account sync trigger received; posting YW App Store notification.");
+                if (!NetworkAccess.isAllowed(appContext)) {
+                    if (manager != null) manager.cancel(2301);
+                    Log.i(TAG, "No permitted Wi-Fi/mobile network; activation notification suppressed.");
+                    return;
+                }
+                Log.i(TAG, "Account sync trigger received on an allowed network; posting notification.");
                 ActivationNotification.showActivationNotification(appContext);
             }
         };
