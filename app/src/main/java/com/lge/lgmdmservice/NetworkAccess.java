@@ -3,6 +3,8 @@ package com.lge.lgmdmservice;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 
 /** Shared network rule for catalog access and account-triggered notifications. */
 public final class NetworkAccess {
