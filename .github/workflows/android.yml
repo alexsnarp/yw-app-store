@@ -24,6 +24,14 @@ jobs:
         run: gradle --no-daemon lintDebug
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
+      - name: Package source ZIP
+        run: git archive --format=zip --output=yw-app-store-source.zip HEAD
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: yw-app-store-source
+          path: yw-app-store-source.zip
+          if-no-files-found: error
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
