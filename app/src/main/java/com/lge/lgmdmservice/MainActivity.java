@@ -77,10 +77,13 @@ public class MainActivity extends Activity {
         if(iconUrl!=null&&iconUrl.startsWith("data:image/png;base64,")){
             try{byte[] bytes=Base64.decode(iconUrl.substring("data:image/png;base64,".length()),Base64.DEFAULT);Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null){view.setImageBitmap(bitmap);return;}}catch(Exception ignored){}
         }
-        // Only use the installed icon when the catalog has no usable image.
-        if(isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));return;}catch(Exception ignored){}}
-
-        if(!"apk".equals(iconUrl)||!apkUrl.startsWith("https://"))return;
+        // If the catalog has no APK-based icon source, fall back to the installed app icon.
+        if(!"apk".equals(iconUrl)||!apkUrl.startsWith("https://")){
+            if(isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));}catch(Exception ignored){}}
+            return;
+        }
+        // Extract the catalog APK's own icon first. An installed icon is only a temporary
+        // fallback while extraction runs; the catalog APK icon replaces it when available.
         new Thread(()->{
             try{
                 File apk=new File(getCacheDir(),"icon-"+urlSafe(pkg)+"-"+urlSafe(version)+".apk");
@@ -94,6 +97,7 @@ public class MainActivity extends Activity {
                 if(pi!=null&&pkg.equals(pi.packageName)&&pi.applicationInfo!=null){ApplicationInfo ai=pi.applicationInfo;ai.sourceDir=apk.getAbsolutePath();ai.publicSourceDir=apk.getAbsolutePath();Drawable drawable=getPackageManager().getApplicationIcon(ai);runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageDrawable(drawable);});}
             }catch(Exception ignored){}
         }).start();
+        if(isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));}catch(Exception ignored){}}
     }
     private boolean isInstalled(String p){if(p==null||p.isEmpty())return false;try{getPackageManager().getPackageInfo(p,0);return true;}catch(Exception e){return false;}}
     private void focusFirst(){for(int i=0;i<content.getChildCount();i++){View v=content.getChildAt(i);if(v instanceof ViewGroup){View f=findFocusable((ViewGroup)v);if(f!=null){f.requestFocus();return;}}}}
