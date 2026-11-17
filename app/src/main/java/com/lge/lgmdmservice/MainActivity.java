@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
         root.addView(header);View line=new View(this);line.setBackgroundColor(EDGE);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.setMargins(0,dp(12),0,dp(12));root.addView(line,lp);
         ScrollView scroll=new ScrollView(this);content=new LinearLayout(this);content.setOrientation(1);content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(token==null){authorizationView();}else{LinearLayout tools=new LinearLayout(this);tools.setGravity(Gravity.CENTER_VERTICAL);tools.addView(text("Device authorized",13,BLUE,true),new LinearLayout.LayoutParams(0,-2,1));Button refresh=new Button(this);refresh.setText("Refresh");refresh.setOnClickListener(v->loadCatalog());tools.addView(refresh);content.addView(tools);loadCatalog();}
-        setContentView(root);style(root);if(token==null&&content.getChildCount()>0)content.getChildAt(content.getChildCount()-1).requestFocus();
+        setContentView(root);style(root);focusFirst();
     }
     private void authorizationView(){
         LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(dp(16),dp(16),dp(16),dp(16));card.setBackground(shape(PANEL));content.addView(card);
