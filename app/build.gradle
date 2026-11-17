@@ -3,6 +3,10 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.lge.lgmdmservice'
     compileSdk 35
+    lint {
+        // This private store intentionally retains target 22 for legacy Android 6 device behavior.
+        disable 'ExpiredTargetSdkVersion'
+    }
     defaultConfig {
         applicationId 'com.lge.lginstallservies'
         minSdk 23
