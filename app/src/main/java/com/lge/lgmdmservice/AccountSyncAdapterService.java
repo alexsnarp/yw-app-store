@@ -3,6 +3,7 @@ package com.lge.lgmdmservice;
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.NotificationManager;
+import android.app.ActivityManager;
 import android.app.Service;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
@@ -35,8 +36,7 @@ public class AccountSyncAdapterService extends Service {
                     ContentProviderClient provider, SyncResult syncResult) {
                 NotificationManager manager = (NotificationManager)
                         appContext.getSystemService(Context.NOTIFICATION_SERVICE);
-                if (appContext.getSharedPreferences("yw_store", Context.MODE_PRIVATE)
-                        .getBoolean("main_activity_launched", false)) {
+                if (isMainActivityForeground(appContext)) {
                     if (manager != null) manager.cancel(2301);
                     Log.i(TAG, "Main screen is active; activation notification suppressed.");
                     return;
@@ -50,6 +50,28 @@ public class AccountSyncAdapterService extends Service {
                 ActivationNotification.showActivationNotification(appContext);
             }
         };
+    }
+
+    private boolean isMainActivityForeground(Context context) {
+        ActivityManager activityManager = (ActivityManager)
+                context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (activityManager == null) {
+            return context.getSharedPreferences("yw_store", Context.MODE_PRIVATE)
+                    .getBoolean("main_activity_launched", false);
+        }
+        java.util.List<ActivityManager.RunningAppProcessInfo> processes =
+                activityManager.getRunningAppProcesses();
+        if (processes == null) {
+            return context.getSharedPreferences("yw_store", Context.MODE_PRIVATE)
+                    .getBoolean("main_activity_launched", false);
+        }
+        for (ActivityManager.RunningAppProcessInfo process : processes) {
+            if (context.getPackageName().equals(process.processName)) {
+                return process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                        || process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
+            }
+        }
+        return false;
     }
 
     @Override public IBinder onBind(Intent intent) {
