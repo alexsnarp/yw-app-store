@@ -31,7 +31,11 @@ public class MainActivity extends Activity {
     private String token, deviceId;
     private boolean catalogBusy;
     private JSONArray catalogApps;
-    private LinearLayout catalogList;
+    private GridLayout catalogList;
+    private TextView downloadLabel;
+    private ProgressBar downloadProgress;
+    private LinearLayout downloadActions;
+    private JSONObject selectedApp;
     private EditText searchBox;
     private boolean installedOnly;
     private String catalogQuery="";
@@ -53,13 +57,13 @@ public class MainActivity extends Activity {
     private StateListDrawable focusBackground(){StateListDrawable states=new StateListDrawable();states.addState(new int[]{android.R.attr.state_focused},focusRing(0xfffff7df));states.addState(new int[]{android.R.attr.state_pressed},focusRing(0xffe8efff));states.addState(new int[]{},focusShape(PANEL,EDGE,1));return states;}
     private void style(View v){if(v.isFocusable()){if(!(v instanceof Button))v.setBackground(focusBackground());v.setFocusable(true);v.setFocusableInTouchMode(v instanceof EditText);if(v instanceof Button){v.setFocusable(true);v.setFocusableInTouchMode(false);v.setMinimumHeight(dp(38));}else{v.setPadding(dp(12),dp(9),dp(12),dp(9));}if(v instanceof Button){((Button)v).setAllCaps(false);((Button)v).setTextSize(14);}}if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)style(g.getChildAt(i));}}
     private void render(){
-        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(13),dp(11),dp(13),dp(9));root.setBackgroundColor(BG);
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(3),dp(3),dp(3),dp(9));
-        TextView logo=text("YW",15,Color.WHITE,true);logo.setGravity(Gravity.CENTER);logo.setBackground(fillShape(0xff10285a));header.addView(logo,new LinearLayout.LayoutParams(dp(46),dp(46)));
-        LinearLayout heading=new LinearLayout(this);heading.setOrientation(LinearLayout.VERTICAL);heading.setPadding(dp(10),0,0,0);heading.addView(text("YW App Store",20,INK,true));heading.addView(text(token==null?"DEVICE SETUP":"THE APP LIBRARY",10,MUTED,true));header.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
-        if(token!=null){Button settings=actionButton("Settings",false);settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings);}
+        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(6),dp(10),dp(6));root.setBackgroundColor(BG);
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(4),dp(1),dp(2),dp(5));
+        TextView logo=text("YW",17,Color.WHITE,true);logo.setGravity(Gravity.CENTER);logo.setBackground(fillShape(0xff10285a));header.addView(logo,new LinearLayout.LayoutParams(dp(42),dp(38)));
+        TextView title=text("YW",17,INK,true);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1);titleLp.leftMargin=dp(9);header.addView(title,titleLp);
+        if(token!=null){TextView settings=text("⚙",23,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(38)));}
         root.addView(header);View line=new View(this);line.setBackgroundColor(EDGE);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
-        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(0,dp(8),0,dp(12));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(2),dp(5),dp(2),dp(8));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(token==null){authorizationView();}else{loadCatalog();}
         setContentView(root);style(root);focusFirst();
     }
@@ -99,220 +103,65 @@ public class MainActivity extends Activity {
     private void loadCatalog(){if(token==null||catalogBusy)return;if(!hasNetwork()){String cache=prefs().getString("cached_catalog_json",null);if(cache!=null)try{showCatalog(new JSONArray(cache),true);return;}catch(Exception ignored){}message("Connect to Wi-Fi or enable mobile data in Settings.");return;}catalogBusy=true;message("Loading apps…");new Thread(()->{try{JSONObject result=request("GET","/api/catalog",null,token);JSONArray apps=result.optJSONArray("apps");if(apps==null)throw new IOException("Invalid catalog response");prefs().edit().putString("cached_catalog_json",apps.toString()).apply();runOnUiThread(()->{catalogBusy=false;showCatalog(apps,false);});}catch(Exception e){runOnUiThread(()->{catalogBusy=false;String cache=prefs().getString("cached_catalog_json",null);try{if(cache!=null){showCatalog(new JSONArray(cache),true);message("Server unavailable — showing saved catalog.");}else message("Could not load catalog: "+e.getMessage());}catch(Exception x){message("Could not load catalog.");}});}}).start();}
     private void message(String s){if(content==null)return;TextView t=text(s,14,MUTED,false);content.addView(t);}
     private void showCatalog(JSONArray apps,boolean cached){
-        catalogApps=apps;
+        catalogApps=apps;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;
         content.removeAllViews();
-        if(cached){
-            TextView cache=text("OFFLINE MODE  ·  Showing your saved app library",11,0xff9a5a00,true);
-            cache.setPadding(dp(12),dp(8),dp(12),dp(8));
-            cache.setBackground(fillShape(0xfffff2d8));
-            content.addView(cache);
+        if(cached){TextView cache=text("OFFLINE  ·  Saved app catalog",10,0xff9a5a00,true);cache.setPadding(dp(8),dp(4),dp(8),dp(4));cache.setBackground(fillShape(0xfffff2d8));content.addView(cache);}
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(4),dp(2),dp(2),dp(4));
+        TextView count=text(apps.length()+" apps",12,MUTED,true);bar.addView(count,new LinearLayout.LayoutParams(0,-2,1));
+        TextView refresh=text("↻",22,BLUE,true);refresh.setGravity(Gravity.CENTER);refresh.setContentDescription("Refresh catalog");refresh.setFocusable(true);refresh.setBackground(focusBackground());refresh.setOnClickListener(v->refreshCatalog());bar.addView(refresh,new LinearLayout.LayoutParams(dp(38),dp(34)));content.addView(bar);
+        catalogList=new GridLayout(this);catalogList.setOrientation(GridLayout.HORIZONTAL);catalogList.setAlignmentMode(GridLayout.ALIGN_BOUNDS);catalogList.setUseDefaultMargins(false);
+        int widthDp=(int)(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);
+        int columns=Math.max(2,Math.min(5,widthDp/142));catalogList.setColumnCount(columns);
+        LinearLayout.LayoutParams gridLp=new LinearLayout.LayoutParams(-1,-2);content.addView(catalogList,gridLp);
+        int shown=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
+        for(int i=0;i<apps.length();i++){
+            JSONObject a=apps.optJSONObject(i);if(a==null)continue;
+            String pkg=a.optString("packageName","");boolean installed=isInstalled(pkg);
+            if(installed&&!showInstalled)continue;
+            shown++;String name=a.optString("name","App"),version=a.optString("version","");
+            int row=shown-1;GridLayout.LayoutParams cell=new GridLayout.LayoutParams(GridLayout.spec(row/columns),GridLayout.spec(row%columns,1f));
+            cell.width=0;cell.height=dp(139);cell.setMargins(dp(3),dp(3),dp(3),dp(3));
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER_HORIZONTAL);tile.setPadding(dp(6),dp(7),dp(6),dp(5));tile.setBackground(focusBackground());tile.setFocusable(true);tile.setClickable(true);tile.setContentDescription(name+(installed?", installed":", available"));
+            ImageView icon=new ImageView(this);icon.setImageResource(android.R.drawable.sym_def_app_icon);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(48),dp(48));iconLp.bottomMargin=dp(4);tile.addView(icon,iconLp);
+            loadCatalogIcon(icon,a.optString("iconUrl",""),a.optString("apkUrl",""),pkg,version);
+            TextView appName=text(name,12,INK,true);appName.setGravity(Gravity.CENTER);appName.setMaxLines(2);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);tile.addView(appName,new LinearLayout.LayoutParams(-1,dp(31)));
+            TextView state=text(installed?"✓ Installed":"Available",10,installed?GREEN:BLUE,true);state.setGravity(Gravity.CENTER);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-1,-2);stateLp.topMargin=dp(2);tile.addView(state,stateLp);
+            tile.setOnClickListener(v->showAppPage(a));catalogList.addView(tile,cell);
         }
-
-        // Featured store header: native Android views, no WebView or Compose dependency.
-        LinearLayout hero=new LinearLayout(this);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(22),dp(20),dp(22),dp(20));
-        GradientDrawable heroBg=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{0xff101d3b,0xff173e78,0xff1769a8});
-        heroBg.setCornerRadius(dp(22));
-        hero.setBackground(heroBg);
-        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);
-        hp.setMargins(0,dp(7),0,dp(16));
-        content.addView(hero,hp);
-
-        LinearLayout topLine=new LinearLayout(this);
-        topLine.setGravity(Gravity.CENTER_VERTICAL);
-        TextView eyebrow=text("YW  ·  YOUR DEVICE, YOUR APPS",10,0xffa9d8ff,true);
-        topLine.addView(eyebrow,new LinearLayout.LayoutParams(0,-2,1));
-        Button refresh=actionButton("↻  Refresh",false);
-        refresh.setTextSize(12);
-        refresh.setOnClickListener(v->refreshCatalog());
-        topLine.addView(refresh,new LinearLayout.LayoutParams(-2,dp(40)));
-        hero.addView(topLine);
-
-        TextView title=text("Discover apps",27,Color.WHITE,true);
-        LinearLayout.LayoutParams titleParams=new LinearLayout.LayoutParams(-1,-2);
-        titleParams.topMargin=dp(12);
-        hero.addView(title,titleParams);
-        TextView intro=text("Everything you need for your device, in one place.",14,0xffd5e6fa,false);
-        LinearLayout.LayoutParams introParams=new LinearLayout.LayoutParams(-1,-2);
-        introParams.topMargin=dp(4);
-        hero.addView(intro,introParams);
-
-        searchBox=new EditText(this);
-        searchBox.setSingleLine(true);
-        searchBox.setTextSize(15);
-        searchBox.setTextColor(INK);
-        searchBox.setHintTextColor(MUTED);
-        searchBox.setHint("⌕   Search apps");
-        searchBox.setPadding(dp(17),dp(8),dp(17),dp(8));
-        searchBox.setBackground(focusBackground());
-        LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(52));
-        sp.setMargins(0,0,0,dp(14));
-        content.addView(searchBox,sp);
-        searchBox.setText(catalogQuery);
-
-        LinearLayout filters=new LinearLayout(this);
-        filters.setGravity(Gravity.CENTER_VERTICAL);
-        filters.setPadding(0,0,0,dp(12));
-        content.addView(filters);
-        filterAllButton=actionButton("All apps",!installedOnly);
-        filterAllButton.setOnClickListener(v->{installedOnly=false;updateFilterButtons();renderCatalogCards();});
-        filters.addView(filterAllButton,new LinearLayout.LayoutParams(0,dp(44),1));
-        filterInstalledButton=actionButton("Installed",installedOnly);
-        LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(0,dp(44),1);
-        fp.leftMargin=dp(9);
-        filters.addView(filterInstalledButton,fp);
-        filterInstalledButton.setOnClickListener(v->{installedOnly=true;updateFilterButtons();renderCatalogCards();});
-
-        TextView section=text("THE APP LIBRARY",10,MUTED,true);
-        section.setLetterSpacing(0.12f);
-        LinearLayout.LayoutParams sectionParams=new LinearLayout.LayoutParams(-1,-2);
-        sectionParams.setMargins(dp(2),dp(3),0,dp(8));
-        content.addView(section,sectionParams);
-
-        catalogList=new LinearLayout(this);
-        catalogList.setOrientation(LinearLayout.VERTICAL);
-        content.addView(catalogList);
-        searchBox.addTextChangedListener(new android.text.TextWatcher(){
-            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
-            public void onTextChanged(CharSequence s,int start,int before,int count){catalogQuery=s.toString();renderCatalogCards();}
-            public void afterTextChanged(android.text.Editable e){}
-        });
-        updateFilterButtons();
-        renderCatalogCards();
+        if(shown==0){TextView empty=text("No apps in the catalog",14,MUTED,false);empty.setGravity(Gravity.CENTER);content.addView(empty);}
         focusFirst();
     }
-    private void updateFilterButtons(){if(filterAllButton==null||filterInstalledButton==null)return;setFilterState(filterAllButton,!installedOnly);setFilterState(filterInstalledButton,installedOnly);}
-    private void setFilterState(Button button,boolean active){StateListDrawable states=new StateListDrawable();states.addState(new int[]{android.R.attr.state_focused},focusRing(active?BLUE_DARK:0xfffff3c4));states.addState(new int[]{android.R.attr.state_pressed},focusRing(active?BLUE_DARK:0xfffff8e6));states.addState(new int[]{},active?fillShape(BLUE):focusShape(PANEL,EDGE,1));button.setBackground(states);button.setTextColor(active?Color.WHITE:BLUE_DARK);}
+    private void showAppPage(JSONObject app){
+        selectedApp=app;content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;
+        String name=app.optString("name","App"),desc=app.optString("description",""),version=app.optString("version",""),pkg=app.optString("packageName",""),url=app.optString("apkUrl","");long size=app.optLong("sizeBytes",0);boolean installed=isInstalled(pkg);
+        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);
+        Button back=actionButton("‹  Back",false);back.setOnClickListener(v->showCatalog(catalogApps,false));top.addView(back,new LinearLayout.LayoutParams(-2,dp(38)));
+        TextView refresh=text("YW  /  APP DETAILS",10,MUTED,true);LinearLayout.LayoutParams tl=new LinearLayout.LayoutParams(0,-2,1);tl.leftMargin=dp(10);top.addView(refresh,tl);content.addView(top);
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER_HORIZONTAL);panel.setPadding(dp(14),dp(14),dp(14),dp(14));panel.setBackground(shape(PANEL));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,-2);pp.topMargin=dp(8);content.addView(panel,pp);
+        ImageView icon=new ImageView(this);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(76),dp(76));ip.bottomMargin=dp(7);panel.addView(icon,ip);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
+        TextView heading=text(name,21,INK,true);heading.setGravity(Gravity.CENTER);panel.addView(heading);
+        TextView state=text(installed?"✓  INSTALLED":"AVAILABLE TO INSTALL",10,installed?GREEN:BLUE,true);LinearLayout.LayoutParams statep=new LinearLayout.LayoutParams(-1,-2);statep.topMargin=dp(5);state.setGravity(Gravity.CENTER);panel.addView(state,statep);
+        if(!desc.isEmpty()){TextView description=text(desc,14,MUTED,false);description.setGravity(Gravity.CENTER);description.setLineSpacing(dp(2),1f);LinearLayout.LayoutParams dp1=new LinearLayout.LayoutParams(-1,-2);dp1.topMargin=dp(12);panel.addView(description,dp1);}
+        TextView meta=text("Version  "+(version.isEmpty()?"—":version)+"\nSize  "+(size>0?formatSize(size):"—")+"\nPackage  "+pkg,12,MUTED,false);meta.setGravity(Gravity.CENTER);meta.setLineSpacing(dp(3),1f);LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,-2);ml.topMargin=dp(12);panel.addView(meta,ml);
+        downloadLabel=text("",12,BLUE,true);downloadLabel.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(-1,-2);dl.topMargin=dp(12);panel.addView(downloadLabel,dl);
+        downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);downloadProgress.setMax(100);downloadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));downloadProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xffe8edf5));downloadProgress.setMinimumHeight(dp(3));downloadProgress.setVisibility(View.GONE);LinearLayout.LayoutParams pl=new LinearLayout.LayoutParams(-1,dp(3));pl.topMargin=dp(8);panel.addView(downloadProgress,pl);
+        downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);LinearLayout.LayoutParams al=new LinearLayout.LayoutParams(-1,-2);al.topMargin=dp(13);panel.addView(downloadActions,al);
+        if(installed){Button open=actionButton("Open app",true);open.setOnClickListener(v->openApp(pkg));downloadActions.addView(open,new LinearLayout.LayoutParams(-1,dp(46)));Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(42));rp.topMargin=dp(6);panel.addView(remove,rp);}
+        else{Button install=actionButton("Download and install",true);install.setOnClickListener(v->download(url,name,pkg,version,null,null));downloadActions.addView(install,new LinearLayout.LayoutParams(-1,dp(46)));}
+        focusFirst();
+    }
+    private void showInstallPrompt(File file,String pkg,String version){
+        JSONObject a=selectedApp;if(a==null){installApk(file,pkg,version);return;}
+        content.removeAllViews();String name=a.optString("name","App"),desc=a.optString("description","");LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setGravity(Gravity.CENTER_HORIZONTAL);page.setPadding(dp(18),dp(14),dp(18),dp(12));page.setBackground(shape(PANEL));content.addView(page,new LinearLayout.LayoutParams(-1,-1));
+        TextView check=text("✓",42,GREEN,true);check.setGravity(Gravity.CENTER);check.setScaleX(0.15f);check.setScaleY(0.15f);page.addView(check,new LinearLayout.LayoutParams(dp(70),dp(70)));check.animate().scaleX(1f).scaleY(1f).setDuration(320).start();
+        page.addView(text("Download complete",20,INK,true));TextView title=text(name,16,MUTED,true);title.setGravity(Gravity.CENTER);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(7);page.addView(title,tp);
+        if(!desc.isEmpty()){TextView summary=text(desc,13,MUTED,false);summary.setGravity(Gravity.CENTER);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(6);page.addView(summary,sp);}
+        TextView note=text("The app is ready. Continue to Android's secure installer to finish.",12,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=dp(12);page.addView(note,np);
+        Button install=actionButton("Install now",true);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(48));bp.topMargin=dp(18);page.addView(install,bp);install.setOnClickListener(v->installApk(file,pkg,version));
+        Button back=actionButton("Back to app details",false);LinearLayout.LayoutParams bb=new LinearLayout.LayoutParams(-1,dp(42));bb.topMargin=dp(7);page.addView(back,bb);back.setOnClickListener(v->showAppPage(a));focusFirst();
+    }
     private String formatSize(long bytes){if(bytes<=0)return "";if(bytes>=1048576)return String.format(Locale.US,"%.1f MB",bytes/1048576d);return String.format(Locale.US,"%d KB",Math.max(1,bytes/1024));}
-    private void showAppDetails(String name,String desc,String version,String pkg,long size,String url,boolean installed,LinearLayout card,LinearLayout actions){
-        String details=(desc==null||desc.isEmpty()?"":desc+"\n\n")+"Version: "+version+"\nPackage: "+pkg+"\nSize: "+formatSize(size)+"\nStatus: "+(installed?"Installed":"Not installed");
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(name).setMessage(details).setPositiveButton(installed?"Open":"Download",(d,w)->{if(installed)openApp(pkg);else download(url,name,pkg,version,card,actions);}).setNegativeButton("Close",null).create();
-        dialog.setOnShowListener(v->{dialog.getButton(-1).setTextColor(BLUE);dialog.getButton(-2).setTextColor(MUTED);});dialog.show();
-    }
-    private void renderCatalogCards(){
-        if(catalogList==null||catalogApps==null)return;
-        catalogList.removeAllViews();
-        int shown=0;
-        boolean showInstalled=prefs().getBoolean("show_installed",true);
-        String q=catalogQuery==null?"":catalogQuery.trim().toLowerCase(Locale.US);
-        for(int i=0;i<catalogApps.length();i++){
-            JSONObject a=catalogApps.optJSONObject(i);
-            if(a==null)continue;
-            String name=a.optString("name","App"),desc=a.optString("description",""),
-                    version=a.optString("version",""),url=a.optString("apkUrl",""),
-                    pkg=a.optString("packageName","");
-            boolean installed=isInstalled(pkg);
-            if(installed&&!showInstalled)continue;
-            if(installedOnly&&!installed)continue;
-            if(!q.isEmpty()&&!name.toLowerCase(Locale.US).contains(q)
-                    &&!desc.toLowerCase(Locale.US).contains(q)
-                    &&!pkg.toLowerCase(Locale.US).contains(q))continue;
-            shown++;
-            long size=a.optLong("sizeBytes",0);
-
-            LinearLayout card=new LinearLayout(this);
-            card.setOrientation(LinearLayout.VERTICAL);
-            card.setPadding(dp(17),dp(16),dp(17),dp(15));
-            card.setBackground(shape(PANEL));
-            LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);
-            cp.setMargins(0,dp(4),0,dp(10));
-            catalogList.addView(card,cp);
-
-            LinearLayout top=new LinearLayout(this);
-            top.setGravity(Gravity.CENTER_VERTICAL);
-            card.addView(top);
-            ImageView icon=new ImageView(this);
-            icon.setImageResource(android.R.drawable.sym_def_app_icon);
-            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            icon.setPadding(dp(5),dp(5),dp(5),dp(5));
-            GradientDrawable iconBg=new GradientDrawable();
-            iconBg.setColor(0xfff0f4fa);
-            iconBg.setCornerRadius(dp(17));
-            icon.setBackground(iconBg);
-            top.addView(icon,new LinearLayout.LayoutParams(dp(68),dp(68)));
-            loadCatalogIcon(icon,a.optString("iconUrl",""),url,pkg,version);
-
-            LinearLayout info=new LinearLayout(this);
-            info.setOrientation(LinearLayout.VERTICAL);
-            info.setPadding(dp(15),0,0,0);
-            top.addView(info,new LinearLayout.LayoutParams(0,-2,1));
-            info.addView(text(name,18,INK,true));
-            String meta="Version "+(version.isEmpty()?"—":version)
-                    +(size>0?"   ·   "+formatSize(size):"");
-            TextView metadata=text(meta,12,MUTED,false);
-            LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,-2);
-            mp.topMargin=dp(5);
-            info.addView(metadata,mp);
-            if(installed){
-                TextView status=text("✓  INSTALLED",10,GREEN,true);
-                LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,-2);
-                stp.topMargin=dp(5);
-                info.addView(status,stp);
-            }else{
-                TextView status=text("AVAILABLE",10,0xff2872c7,true);
-                LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,-2);
-                stp.topMargin=dp(5);
-                info.addView(status,stp);
-            }
-
-            if(!desc.isEmpty()&&prefs().getBoolean("show_descriptions",true)){
-                TextView description=text(desc,13,MUTED,false);
-                description.setLineSpacing(dp(2),1f);
-                description.setMaxLines(3);
-                LinearLayout.LayoutParams dp1=new LinearLayout.LayoutParams(-1,-2);
-                dp1.topMargin=dp(13);
-                card.addView(description,dp1);
-            }
-
-            View divider=new View(this);
-            divider.setBackgroundColor(0xffedf0f5);
-            LinearLayout.LayoutParams divp=new LinearLayout.LayoutParams(-1,dp(1));
-            divp.topMargin=dp(14);
-            divp.bottomMargin=dp(12);
-            card.addView(divider,divp);
-
-            LinearLayout actions=new LinearLayout(this);
-            actions.setGravity(Gravity.CENTER_VERTICAL);
-            card.addView(actions);
-            if(installed){
-                Button open=actionButton("Open",true);
-                open.setOnClickListener(v->openApp(pkg));
-                actions.addView(open,new LinearLayout.LayoutParams(0,dp(48),1));
-                Button remove=actionButton("Uninstall",false);
-                remove.setOnClickListener(v->uninstall(pkg));
-                LinearLayout.LayoutParams ur=new LinearLayout.LayoutParams(0,dp(48),1);
-                ur.leftMargin=dp(9);
-                actions.addView(remove,ur);
-            }else{
-                Button details=actionButton("Details",false);
-                details.setOnClickListener(v->showAppDetails(name,desc,version,pkg,size,url,false,card,actions));
-                actions.addView(details,new LinearLayout.LayoutParams(0,dp(48),1));
-                Button download=actionButton("Install",true);
-                download.setOnClickListener(v->download(url,name,pkg,version,card,actions));
-                LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(0,dp(48),1);
-                dl.leftMargin=dp(9);
-                actions.addView(download,dl);
-            }
-        }
-        if(shown==0){
-            LinearLayout empty=new LinearLayout(this);
-            empty.setOrientation(LinearLayout.VERTICAL);
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(dp(20),dp(30),dp(20),dp(30));
-            empty.setBackground(shape(PANEL));
-            TextView title=text(installedOnly?"Nothing installed yet":"No apps found",18,INK,true);
-            title.setGravity(Gravity.CENTER);
-            empty.addView(title);
-            TextView hint=text(installedOnly?"Installed apps will appear here.":"Try a different search term.",13,MUTED,false);
-            hint.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams eh=new LinearLayout.LayoutParams(-1,-2);
-            eh.topMargin=dp(6);
-            empty.addView(hint,eh);
-            catalogList.addView(empty);
-        }
-    }
     private void loadCatalogIcon(ImageView view,String iconUrl,String apkUrl,String pkg,String version){
         view.setTag(pkg);
         // Catalog icons are served independently. Never download an entire APK merely
@@ -362,7 +211,19 @@ public class MainActivity extends Activity {
     private void focusFirst(){content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);View first=findButtonFocusable(content);if(first==null)first=findFocusable(content);if(first!=null){first.setFocusable(true);first.requestFocus();}}
     private View findButtonFocusable(ViewGroup g){for(int i=0;i<g.getChildCount();i++){View v=g.getChildAt(i);if(v instanceof Button&&v.isFocusable()&&v.getVisibility()==View.VISIBLE)return v;if(v instanceof ViewGroup){View f=findButtonFocusable((ViewGroup)v);if(f!=null)return f;}}return null;}
     private View findFocusable(ViewGroup g){for(int i=0;i<g.getChildCount();i++){View v=g.getChildAt(i);if(v.isFocusable()&&v.getVisibility()==View.VISIBLE&&!(v instanceof EditText))return v;if(v instanceof ViewGroup){View f=findFocusable((ViewGroup)v);if(f!=null)return f;}}return null;}
-    private void download(String url,String name,String pkg,String version,LinearLayout card,LinearLayout actions){String key=pkg.isEmpty()?name:pkg;if(!url.startsWith("https://")){toast("No secure download URL is configured for this app.");return;}if(!hasNetwork()){toast("Connect to Wi-Fi or enable mobile data in Settings.");return;}if(!downloading.add(key)){toast("This download is already in progress.");return;}cancelled.remove(key);actions.removeAllViews();TextView label=text("Preparing your download…",13,BLUE,true);card.addView(label);ProgressBar bar=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(EDGE));bar.setMinimumHeight(dp(8));LinearLayout.LayoutParams progressParams=new LinearLayout.LayoutParams(-1,dp(8));progressParams.topMargin=dp(9);card.addView(bar,progressParams);Button cancel=actionButton("Cancel download",false);cancel.setOnClickListener(v->{cancelled.add(key);cancel.setEnabled(false);cancel.setText("Cancelling…");});actions.addView(cancel,new LinearLayout.LayoutParams(-1,dp(44)));new Thread(()->{HttpURLConnection c=null;File file=new File(getCacheDir(),"yw-"+urlSafe(pkg.isEmpty()?name:pkg)+"-"+urlSafe(version)+".apk");File partial=new File(file.getAbsolutePath()+".part");try{c=(HttpURLConnection)new URL(url).openConnection();if(c instanceof HttpsURLConnection)try{LegacyTlsCompat.configure(this,(HttpsURLConnection)c);}catch(Exception ignored){}c.setConnectTimeout(20000);c.setReadTimeout(30000);c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("X-Device-Id",deviceId);int status=c.getResponseCode();if(status<200||status>=300)throw new IOException("Download returned HTTP "+status);long total=c.getContentLength(),done=0;try(InputStream in=c.getInputStream();FileOutputStream out=new FileOutputStream(partial)){byte[] buf=new byte[32768];int n;while((n=in.read(buf))!=-1){if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");out.write(buf,0,n);done+=n;final int pct=total>0?(int)Math.min(100,done*100/total):-1;final String msg=total>0?String.format(Locale.US,"Downloading… %d%% (%.1f / %.1f MB)",pct,done/1048576d,total/1048576d):String.format(Locale.US,"Downloading… %.1f MB",done/1048576d);runOnUiThread(()->{if(pct>=0)bar.setProgress(pct);label.setText(msg);});}}if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");if(partial.length()<1024)throw new IOException("Downloaded file is incomplete");if(total>0&&done!=total)throw new IOException("Download ended before all bytes arrived");int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),signatureFlags);if(archive==null||!pkg.equals(archive.packageName))throw new IOException("The downloaded APK does not match the catalog package.");if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded version "+archive.versionName+" does not match catalog version "+version+".");if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("The APK is signed with a different certificate from the installed app.");}if(file.exists()&&!file.delete())throw new IOException("Could not replace the previous APK cache");if(!partial.renameTo(file))throw new IOException("Could not finalize the downloaded APK");runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);actions.removeAllViews();label.setText("Download complete — ready to install");bar.setProgress(100);Button install=actionButton("Install now",true);install.setFocusable(true);install.setFocusableInTouchMode(false);install.setMinimumHeight(dp(42));install.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Install "+name+"?").setMessage("Android will open its installer. Follow the system prompts to complete installation.").setPositiveButton("OK",(d,w)->installApk(file,pkg,version)).setNegativeButton("Cancel",null).show());actions.addView(install,new LinearLayout.LayoutParams(-1,dp(48)));install.requestFocus();});}catch(Exception e){partial.delete();boolean wasCancelled=cancelled.contains(key);runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);label.setText(wasCancelled?"Download cancelled.":"Download failed — please retry.");if(!wasCancelled)toast("Download failed: "+e.getMessage());actions.removeAllViews();Button retry=actionButton(wasCancelled?"Download again":"Retry",true);retry.setFocusable(true);retry.setFocusableInTouchMode(false);retry.setMinimumHeight(dp(42));retry.setOnClickListener(v->download(url,name,pkg,version,card,actions));actions.addView(retry,new LinearLayout.LayoutParams(-1,dp(48)));retry.requestFocus();});}finally{if(c!=null)c.disconnect();}}).start();}
+    private void download(String url,String name,String pkg,String version,LinearLayout card,LinearLayout actions){
+        String key=pkg.isEmpty()?name:pkg;if(!url.startsWith("https://")){toast("No secure download URL is configured for this app.");return;}if(!hasNetwork()){toast("Connect to Wi-Fi or enable mobile data in Settings.");return;}if(!downloading.add(key)){toast("This download is already in progress.");return;}cancelled.remove(key);
+        if(downloadLabel==null||downloadProgress==null||downloadActions==null){if(selectedApp!=null)showAppPage(selectedApp);else return;}
+        downloadLabel.setText("Preparing download…");downloadProgress.setVisibility(View.VISIBLE);downloadProgress.setIndeterminate(true);downloadActions.removeAllViews();Button cancel=actionButton("Cancel",false);cancel.setOnClickListener(v->{cancelled.add(key);cancel.setEnabled(false);cancel.setText("Cancelling…");});downloadActions.addView(cancel,new LinearLayout.LayoutParams(-1,dp(42)));
+        new Thread(()->{HttpURLConnection c=null;File file=new File(getCacheDir(),"yw-"+urlSafe(pkg.isEmpty()?name:pkg)+"-"+urlSafe(version)+".apk");File partial=new File(file.getAbsolutePath()+".part");try{
+            c=(HttpURLConnection)new URL(url).openConnection();if(c instanceof HttpsURLConnection)try{LegacyTlsCompat.configure(this,(HttpsURLConnection)c);}catch(Exception ignored){}c.setConnectTimeout(20000);c.setReadTimeout(30000);c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("X-Device-Id",deviceId);int status=c.getResponseCode();if(status<200||status>=300)throw new IOException("Download returned HTTP "+status);
+            long total=c.getContentLength(),done=0;try(InputStream in=c.getInputStream();FileOutputStream out=new FileOutputStream(partial)){byte[] buf=new byte[32768];int n;while((n=in.read(buf))!=-1){if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");out.write(buf,0,n);done+=n;final int pct=total>0?(int)Math.min(100,done*100/total):-1;final long current=done;runOnUiThread(()->{if(downloadLabel!=null){downloadProgress.setIndeterminate(false);if(pct>=0)downloadProgress.setProgress(pct);downloadLabel.setText(pct>=0?"Downloading  "+pct+"%  ·  "+formatSize(current)+" / "+formatSize(total):"Downloading  ·  "+formatSize(current));}});}}
+            if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");if(partial.length()<1024)throw new IOException("Downloaded file is incomplete");if(total>0&&done!=total)throw new IOException("Download ended before all bytes arrived");
+            int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),signatureFlags);if(archive==null||!pkg.equals(archive.packageName))throw new IOException("The downloaded APK does not match the catalog package.");if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded version "+archive.versionName+" does not match catalog version "+version+".");if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("The APK is signed with a different certificate from the installed app.");}
+            if(file.exists()&&!file.delete())throw new IOException("Could not replace the previous APK cache");if(!partial.renameTo(file))throw new IOException("Could not finalize the downloaded APK");
+            runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);if(downloadProgress!=null){downloadProgress.setIndeterminate(false);downloadProgress.setProgress(100);}if(downloadLabel!=null)downloadLabel.setText("Download complete");if(downloadActions!=null){downloadActions.removeAllViews();TextView check=text("✓",30,GREEN,true);check.setGravity(Gravity.CENTER);check.setScaleX(0.1f);check.setScaleY(0.1f);downloadActions.addView(check,new LinearLayout.LayoutParams(-1,dp(42)));check.animate().scaleX(1f).scaleY(1f).setDuration(360).start();downloadActions.postDelayed(()->showInstallPrompt(file,pkg,version),650);}});
+        }catch(Exception e){partial.delete();boolean wasCancelled=cancelled.contains(key);runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);if(downloadLabel!=null)downloadLabel.setText(wasCancelled?"Download cancelled":"Download failed — try again");if(downloadProgress!=null)downloadProgress.setVisibility(View.GONE);if(downloadActions!=null){downloadActions.removeAllViews();Button retry=actionButton(wasCancelled?"Download again":"Retry",true);retry.setOnClickListener(v->download(url,name,pkg,version,null,null));downloadActions.addView(retry,new LinearLayout.LayoutParams(-1,dp(44)));}if(!wasCancelled)toast("Download failed: "+e.getMessage());});}finally{if(c!=null)c.disconnect();}}).start();
+    }
     private String urlSafe(String s){return s.replaceAll("[^A-Za-z0-9._-]","_");}
     private void installApk(File file,String pkg,String version){PackageInstaller.Session session=null;try{int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(file.getAbsolutePath(),signatureFlags);if(!file.isFile()||file.length()<1024||archive==null||!pkg.equals(archive.packageName))throw new IOException("Downloaded APK is invalid or belongs to another app.");if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded APK version does not match the selected catalog version.");if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("APK signing certificate does not match the installed app.");}PackageInstaller installer=getPackageManager().getPackageInstaller();PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);params.setAppPackageName(pkg);params.setSize(file.length());int id=installer.createSession(params);session=installer.openSession(id);try(InputStream in=new FileInputStream(file);OutputStream out=session.openWrite("base.apk",0,-1)){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)out.write(b,0,n);session.fsync(out);}Intent callback=new Intent(this,InstallStatusReceiver.class);callback.setAction("com.lge.lginstallservies.INSTALL_STATUS."+id);callback.putExtra("yw_package_name",pkg);callback.putExtra("yw_version",version);int flags=PendingIntent.FLAG_UPDATE_CURRENT;if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;PendingIntent pi=PendingIntent.getBroadcast(this,id,callback,flags);session.commit(pi.getIntentSender());session.close();session=null;}catch(Exception e){if(session!=null)try{session.abandon();}catch(Exception ignored){}toast("Could not start installation: "+e.getMessage());}}
     private void openApp(String p){try{Intent i=getPackageManager().getLaunchIntentForPackage(p);if(i!=null)startActivity(i);else toast("No launch screen is available.");}catch(Exception e){toast("Could not open app.");}}
