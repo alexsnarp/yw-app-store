@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
         check.setButtonTintList(android.content.res.ColorStateList.valueOf(BLUE));check.setContentDescription(title);row.addView(check);
     }
     private void settings(){
-        currentScreen="settings";mainHeader.setVisibility(View.GONE);content.removeAllViews();
+        currentScreen="settings";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);content.removeAllViews();
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(5),dp(2),dp(5),dp(7));
         Button back=actionButton("‹",false);back.setContentDescription("Back");back.setOnClickListener(v->returnToCatalog());top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(40)));
         TextView heading=text("Settings",18,INK,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(10);top.addView(heading,hp);content.addView(top);
@@ -144,7 +144,7 @@ public class MainActivity extends Activity {
         focusFirst();if(restoreCatalogPosition){restoreCatalogPosition=false;pageScroll.post(()->pageScroll.scrollTo(0,catalogScrollY));}else if(catalogScrollY==0)pageScroll.post(()->pageScroll.scrollTo(0,0));
     }
     private void showAppPage(JSONObject app){
-        currentScreen="details";mainHeader.setVisibility(View.GONE);selectedApp=app;content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;
+        currentScreen="details";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);selectedApp=app;content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;
         String name=app.optString("name","App"),desc=app.optString("description",""),version=app.optString("version",""),pkg=app.optString("packageName",""),url=app.optString("apkUrl","");long size=app.optLong("sizeBytes",0);boolean installed=isInstalled(pkg);
         File savedApk=apkFile(pkg,version);boolean downloaded=!installed&&isValidDownloadedApk(savedApk,pkg,version);
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(3),dp(1),dp(3),dp(4));Button back=actionButton("‹",false);back.setContentDescription("Back");back.setOnClickListener(v->returnToCatalog());top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(38)));content.addView(top);
@@ -163,7 +163,7 @@ public class MainActivity extends Activity {
         focusFirst();
     }
     private void showInstallPrompt(File file,String pkg,String version){
-        JSONObject a=selectedApp;currentScreen="complete";mainHeader.setVisibility(View.GONE);content.removeAllViews();String name=a==null?"App":a.optString("name","App"),desc=a==null?"":a.optString("description","");
+        JSONObject a=selectedApp;currentScreen="complete";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);content.removeAllViews();String name=a==null?"App":a.optString("name","App"),desc=a==null?"":a.optString("description","");
         LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setGravity(Gravity.CENTER_HORIZONTAL);page.setPadding(dp(18),dp(14),dp(18),dp(12));page.setBackground(shape(PANEL));content.addView(page,new LinearLayout.LayoutParams(-1,-1));
         TextView check=text("✓",30,GREEN,true);check.setGravity(Gravity.CENTER);check.setBackground(fillShape(0xffe5f6ef));check.setScaleX(0.85f);check.setScaleY(0.85f);page.addView(check,new LinearLayout.LayoutParams(dp(58),dp(58)));check.animate().scaleX(1f).scaleY(1f).setDuration(220).start();
         TextView title=text("Download complete",19,INK,true);title.setGravity(Gravity.CENTER);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(-1,-2);titleLp.topMargin=dp(12);page.addView(title,titleLp);
