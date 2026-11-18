@@ -16,7 +16,7 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             show(context,pkg);StoreReporter.report(context,pkg,version==null?"":version,"installed");
         }else{
             String detail=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-            Toast.makeText(context,"Installation did not complete"+(detail==null?"":": "+detail),Toast.LENGTH_LONG).show();
+            Toast.makeText(context,"Installation couldn’t be completed. Please try again.",Toast.LENGTH_LONG).show();
             StoreReporter.report(context,pkg,version==null?"":version,"failed");
         }
     }
