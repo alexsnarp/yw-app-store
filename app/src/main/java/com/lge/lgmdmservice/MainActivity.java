@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
     private final HashMap<String,Boolean> downloadedStateCache=new HashMap<String,Boolean>();
     private final HashMap<String,View> catalogRowViews=new HashMap<String,View>();
     private final Handler messageHandler=new Handler(Looper.getMainLooper());
-    private String catalogFocusedPackage,pendingMessage;
+    private String catalogFocusedPackage,pendingMessage,detailsReturnScreen="catalog",pendingLogcat;
     private TextView messageBanner;
     private Runnable hideMessage;
     private LinearLayout root, content, mainHeader;
@@ -118,6 +118,8 @@ public class MainActivity extends Activity {
         mobile.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("mobile_data",checked).apply());
         installed.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_installed",checked).apply());
         descriptions.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_descriptions",checked).apply());
+        Button storeUpdate=actionButton("Check for App Store updates",false);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(-1,dp(44));storeUpdateLp.topMargin=dp(12);content.addView(storeUpdate,storeUpdateLp);storeUpdate.setOnClickListener(v->checkStoreUpdate());
+        Button exportLogs=actionButton("Export diagnostic log",false);LinearLayout.LayoutParams logsLp=new LinearLayout.LayoutParams(-1,dp(44));logsLp.topMargin=dp(6);content.addView(exportLogs,logsLp);exportLogs.setOnClickListener(v->exportLogcat());
         focusFirst();
     }
     private void returnFromSettings(){String previous=settingsReturnScreen;catalogScrollY=settingsReturnScrollY;restoreCatalogPosition=true;if("details".equals(previous)&&selectedApp!=null){showAppPage(selectedApp);return;}if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}returnToCatalog();}
