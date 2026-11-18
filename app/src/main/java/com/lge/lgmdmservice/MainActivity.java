@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private Button filterAllButton,filterInstalledButton;
 
     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+0.5f);}
+    private float dp(float n){return n*getResources().getDisplayMetrics().density;}
     private android.content.SharedPreferences prefs(){return getSharedPreferences(PREF,0);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     @Override public void onCreate(Bundle b){super.onCreate(b);prefs().edit().putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();maybeRequestLocalUpdatePermission();}
