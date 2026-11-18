@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(3),dp(2),dp(2),dp(7));
         ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.ic_yw_app);logo.setScaleType(ImageView.ScaleType.FIT_CENTER);header.addView(logo,new LinearLayout.LayoutParams(dp(38),dp(38)));
         TextView title=text("YW App Store",16,INK,true);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1);titleLp.leftMargin=dp(10);header.addView(title,titleLp);
-        if(token!=null){TextView settings=text("⚙",21,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(40),dp(38)));}
+        if(token!=null){TextView settings=text("⋮",26,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(38)));}
         root.addView(header);View line=new View(this);line.setBackgroundColor(EDGE);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(2),dp(5),dp(2),dp(8));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(token==null){authorizationView();}else{loadCatalog();}
@@ -106,30 +106,36 @@ public class MainActivity extends Activity {
         catalogApps=apps;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;
         content.removeAllViews();
         if(cached){TextView cache=text("OFFLINE  ·  Saved app catalog",10,0xff9a5a00,true);cache.setPadding(dp(8),dp(4),dp(8),dp(4));cache.setBackground(fillShape(0xfffff2d8));content.addView(cache);}
-        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(4),dp(2),dp(2),dp(4));
-        TextView count=text(apps.length()+" apps",12,MUTED,true);bar.addView(count,new LinearLayout.LayoutParams(0,-2,1));
-        TextView refresh=text("↻",22,BLUE,true);refresh.setGravity(Gravity.CENTER);refresh.setContentDescription("Refresh catalog");refresh.setFocusable(true);refresh.setBackground(focusBackground());refresh.setOnClickListener(v->refreshCatalog());bar.addView(refresh,new LinearLayout.LayoutParams(dp(38),dp(34)));content.addView(bar);
-        catalogList=new GridLayout(this);catalogList.setOrientation(GridLayout.HORIZONTAL);catalogList.setAlignmentMode(GridLayout.ALIGN_BOUNDS);catalogList.setUseDefaultMargins(false);
-        int widthDp=(int)(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);
-        int columns=Math.max(2,Math.min(6,widthDp/112));catalogList.setColumnCount(columns);
-        LinearLayout.LayoutParams gridLp=new LinearLayout.LayoutParams(-1,-2);content.addView(catalogList,gridLp);
-        int shown=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),dp(4),dp(4),dp(7));
+        int visibleCount=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
+        for(int i=0;i<apps.length();i++){JSONObject a=apps.optJSONObject(i);if(a==null)continue;String p=a.optString("packageName","");if(!isInstalled(p)||showInstalled)visibleCount++;}
+        TextView count=text("AVAILABLE APPLICATIONS",11,MUTED,true);bar.addView(count,new LinearLayout.LayoutParams(0,-2,1));
+        TextView total=text(String.valueOf(visibleCount),11,BLUE,true);total.setGravity(Gravity.CENTER);total.setBackground(fillShape(BLUE_TINT));bar.addView(total,new LinearLayout.LayoutParams(dp(30),dp(26)));
+        TextView refresh=text("↻",21,BLUE,true);refresh.setGravity(Gravity.CENTER);refresh.setContentDescription("Refresh catalog");refresh.setFocusable(true);refresh.setBackground(focusBackground());refresh.setOnClickListener(v->refreshCatalog());LinearLayout.LayoutParams refreshLp=new LinearLayout.LayoutParams(dp(40),dp(36));refreshLp.leftMargin=dp(5);bar.addView(refresh,refreshLp);content.addView(bar);
+        catalogList=new GridLayout(this);catalogList.setOrientation(GridLayout.VERTICAL);catalogList.setColumnCount(1);catalogList.setAlignmentMode(GridLayout.ALIGN_BOUNDS);catalogList.setUseDefaultMargins(false);
+        LinearLayout.LayoutParams listLp=new LinearLayout.LayoutParams(-1,-1);content.addView(catalogList,listLp);
+        int shown=0;
         for(int i=0;i<apps.length();i++){
             JSONObject a=apps.optJSONObject(i);if(a==null)continue;
             String pkg=a.optString("packageName","");boolean installed=isInstalled(pkg);
             if(installed&&!showInstalled)continue;
-            shown++;String name=a.optString("name","App"),version=a.optString("version","");
-            int row=shown-1;GridLayout.LayoutParams cell=new GridLayout.LayoutParams(GridLayout.spec(row/columns),GridLayout.spec(row%columns,1f));
-            cell.width=0;cell.height=dp(124);cell.setMargins(dp(4),dp(4),dp(4),dp(4));
-            LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER_HORIZONTAL);tile.setPadding(dp(5),dp(7),dp(5),dp(6));tile.setBackground(focusBackground());tile.setFocusable(true);tile.setClickable(true);tile.setContentDescription(name+(installed?", installed":", available"));
+            shown++;String name=a.optString("name","App"),version=a.optString("version",""),description=a.optString("description","");
+            GridLayout.LayoutParams cell=new GridLayout.LayoutParams(GridLayout.spec(shown-1),GridLayout.spec(0));
+            cell.width=-1;cell.height=-2;cell.setMargins(0,0,0,dp(1));
+            LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setOrientation(LinearLayout.HORIZONTAL);row.setPadding(dp(10),dp(9),dp(10),dp(9));row.setMinimumHeight(dp(76));row.setBackground(focusBackground());row.setFocusable(true);row.setClickable(true);row.setContentDescription(name+(installed?", installed":", available"));
             ImageView icon=new ImageView(this);icon.setImageResource(android.R.drawable.sym_def_app_icon);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(52),dp(52));iconLp.bottomMargin=dp(5);tile.addView(icon,iconLp);
+            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(48),dp(48));iconLp.rightMargin=dp(12);row.addView(icon,iconLp);
             loadCatalogIcon(icon,a.optString("iconUrl",""),a.optString("apkUrl",""),pkg,version);
-            TextView appName=text(name,12,INK,true);appName.setGravity(Gravity.CENTER);appName.setMaxLines(2);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);tile.addView(appName,new LinearLayout.LayoutParams(-1,dp(30)));
-            TextView state=text(installed?"✓ Installed":"Available",10,installed?GREEN:BLUE,true);state.setGravity(Gravity.CENTER);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-1,-2);stateLp.topMargin=dp(1);tile.addView(state,stateLp);
-            tile.setOnClickListener(v->showAppPage(a));catalogList.addView(tile,cell);
+            LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.setGravity(Gravity.CENTER_VERTICAL);
+            TextView appName=text(name,14,INK,true);appName.setMaxLines(1);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);copy.addView(appName,new LinearLayout.LayoutParams(-1,-2));
+            if(prefs().getBoolean("show_descriptions",true)&&!description.isEmpty()){TextView summary=text(description,11,MUTED,false);summary.setMaxLines(1);summary.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams summaryLp=new LinearLayout.LayoutParams(-1,-2);summaryLp.topMargin=dp(3);copy.addView(summary,summaryLp);}
+            TextView state=text(installed?"Installed":"Available",10,installed?GREEN:BLUE,true);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(4);copy.addView(state,stateLp);
+            row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
+            TextView arrow=text("›",25,MUTED,false);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(22),dp(38)));
+            row.setOnClickListener(v->showAppPage(a));catalogList.addView(row,cell);
+            View divider=new View(this);divider.setBackgroundColor(EDGE);GridLayout.LayoutParams dividerLp=new GridLayout.LayoutParams(GridLayout.spec(shown),GridLayout.spec(0));dividerLp.width=-1;dividerLp.height=dp(1);catalogList.addView(divider,dividerLp);
         }
-        if(shown==0){TextView empty=text("No apps in the catalog",14,MUTED,false);empty.setGravity(Gravity.CENTER);content.addView(empty);}
+        if(shown==0){TextView empty=text("No apps are currently available.",14,MUTED,false);empty.setGravity(Gravity.CENTER);content.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
         focusFirst();
     }
     private void showAppPage(JSONObject app){
