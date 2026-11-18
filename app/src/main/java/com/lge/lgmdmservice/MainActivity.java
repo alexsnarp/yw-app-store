@@ -163,7 +163,9 @@ public class MainActivity extends Activity {
         if(shown==0){TextView empty=text("No apps are currently listed.",14,MUTED,false);empty.setGravity(Gravity.CENTER);catalogList.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
         pageScroll.post(()->{if(restoreCatalogPosition){restoreCatalogPosition=false;pageScroll.scrollTo(0,catalogScrollY);}View target=catalogRowViews.get(catalogFocusedPackage);if(target!=null){target.setFocusable(true);target.requestFocus();}else focusFirst();});
     }
+    // Same platform shared-element transition pattern for the Settings glyph.
     private void openSettings(View shared){if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,SettingsActivity.class);intent.putExtra("yw_show_settings",true);startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-settings-icon").toBundle());}else settings();}
+    // Uses the standard Android shared-element ActivityOptions pattern demonstrated in Google's ActivitySceneTransitionBasic sample: pass the source view and the same transition name used by the destination view.
     private void openAppDetails(JSONObject app,View shared){if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else showAppPage(app);}
     private void showAppPage(JSONObject app){
         if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");if(!focusPackage.isEmpty())catalogFocusedPackage=focusPackage;
