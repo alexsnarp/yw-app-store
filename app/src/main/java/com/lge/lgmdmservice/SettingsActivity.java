@@ -10,6 +10,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,11 +28,13 @@ public final class SettingsActivity extends Activity {
     private static final int BG=0xfff5f7fb, PANEL=0xffffffff, EDGE=0xffe1e7f0, BLUE=0xff1769e0, INK=0xff152238, MUTED=0xff637187;
     private TextView banner;
     private String logExport;
+    private final Handler messageHandler=new Handler(Looper.getMainLooper());
+    private Runnable hideBanner;
     private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
     private SharedPreferences prefs(){return getSharedPreferences("yw_store",MODE_PRIVATE);}
     private GradientDrawable shape(int color,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(15));if(stroke!=0)d.setStroke(dp(1),stroke);return d;}
     private TextView text(String value,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
-    private void message(String value){if(banner!=null){banner.setText(value);banner.setVisibility(View.VISIBLE);banner.setAlpha(0f);banner.setTranslationY(dp(8));banner.animate().alpha(1f).translationY(0f).setDuration(180).start();}}
+    private void message(String value){if(banner!=null){if(hideBanner!=null)messageHandler.removeCallbacks(hideBanner);banner.setText(value);banner.setVisibility(View.VISIBLE);banner.setAlpha(0f);banner.setTranslationY(dp(8));banner.animate().alpha(1f).translationY(0f).setDuration(180).start();hideBanner=()->banner.animate().alpha(0f).translationY(dp(6)).setDuration(150).withEndAction(()->{if(banner!=null){banner.setVisibility(View.GONE);banner.setAlpha(1f);banner.setTranslationY(0f);}}).start();messageHandler.postDelayed(hideBanner,4000);}}
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
         if(Build.VERSION.SDK_INT>=21){
@@ -65,7 +69,7 @@ public final class SettingsActivity extends Activity {
     private void setting(LinearLayout parent,String title,String subtitle,CheckBox check,String key){
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(7),dp(8),dp(7));row.setBackground(shape(PANEL,EDGE));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);parent.addView(row,rp);
         LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.addView(text(title,14,INK,true));TextView sub=text(subtitle,11,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(3);copy.addView(sub,sp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
-        check.setButtonTintList(android.content.res.ColorStateList.valueOf(BLUE));check.setFocusable(true);check.setContentDescription(title);row.addView(check);
+        check.setButtonTintList(android.content.res.ColorStateList.valueOf(BLUE));check.setFocusable(true);check.setScaleX(0.92f);check.setScaleY(0.92f);check.setContentDescription(title);row.addView(check);
         check.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean(key,checked).apply());
         row.setFocusable(true);row.setClickable(true);row.setOnClickListener(v->check.setChecked(!check.isChecked()));
     }
