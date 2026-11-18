@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
         if(token!=null){TextView reload=text("↻",23,BLUE,true);reload.setGravity(Gravity.CENTER);reload.setContentDescription("Reload apps");reload.setFocusable(true);reload.setBackground(focusBackground());reload.setOnClickListener(v->refreshCatalog());mainHeader.addView(reload,new LinearLayout.LayoutParams(dp(42),dp(40)));
             SettingsGlyph settings=new SettingsGlyph(this);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});mainHeader.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(40)));}
         root.addView(mainHeader,new LinearLayout.LayoutParams(-1,dp(46)));View line=new View(this);line.setBackgroundColor(EDGE);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
-        pageScroll=new ScrollView(this);pageScroll.setFillViewport(true);pageScroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(5),dp(3),dp(5),dp(3));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        pageScroll=new ScrollView(this);pageScroll.setFillViewport(true);pageScroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(0,dp(3),0,dp(3));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         pageScroll.addView(content,new ScrollView.LayoutParams(-1,-2));pageScroll.setOnScrollChangeListener((v,x,y,ox,oy)->{if("catalog".equals(currentScreen))catalogScrollY=y;});root.addView(pageScroll,new LinearLayout.LayoutParams(-1,0,1));
         setContentView(root);if(token==null)authorizationView();else loadCatalog();style(root);focusFirst();root.requestApplyInsets();
     }
@@ -117,7 +117,7 @@ public class MainActivity extends Activity {
     private void loadCatalog(){
         if(token==null||catalogBusy)return;String cache=prefs().getString("cached_catalog_json",null);boolean haveCache=false;
         if(catalogApps==null&&cache!=null)try{showCatalog(new JSONArray(cache),true);haveCache=true;}catch(Exception ignored){}
-        if(!hasNetwork()){if(catalogApps==null&&cache!=null)try{showCatalog(new JSONArray(cache),true);}catch(Exception ignored){}if(catalogApps==null)message("Can't connect to server.");return;}
+        if(!hasNetwork()){if(catalogApps!=null){if("catalog".equals(currentScreen))showCatalog(catalogApps,true);}else if(cache!=null)try{showCatalog(new JSONArray(cache),true);}catch(Exception ignored){}if(catalogApps==null)message("Can't connect to server.");return;}
         catalogBusy=true;if(!haveCache&&catalogApps==null)message("Loading apps…");
         new Thread(()->{try{JSONObject result=request("GET","/api/catalog",null,token);JSONArray apps=result.optJSONArray("apps");if(apps==null)throw new IOException("Invalid catalog response");prefs().edit().putString("cached_catalog_json",apps.toString()).apply();
             runOnUiThread(()->{catalogBusy=false;catalogApps=apps;catalogCached=false;if("catalog".equals(currentScreen))showCatalog(apps,false);});
