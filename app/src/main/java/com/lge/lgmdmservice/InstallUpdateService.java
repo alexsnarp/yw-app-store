@@ -29,13 +29,13 @@ public class InstallUpdateService extends IntentService {
     @Override protected void onHandleIntent(Intent intent) {
         if (intent == null || !ACTION_INSTALL_LOCAL_UPDATE.equals(intent.getAction())) return;
         if (checkSelfPermission("android.permission.READ_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED) {
-            postStatus("Storage access unavailable", "Open YW App Store and approve storage access, then retry.");
+            postStatus("Storage access needed", "Allow storage access, then try again.");
             return;
         }
 
         File apk = new File(Environment.getExternalStorageDirectory(), "YWAI.apk");
         if (!apk.isFile() || !apk.canRead() || apk.length() <= 0) {
-            postStatus("Update APK not found", "Place a readable update at /storage/emulated/0/YWAI.apk.");
+            postStatus("Update not available", "The update file isn’t available. Please try again.");
             return;
         }
 
@@ -48,11 +48,11 @@ public class InstallUpdateService extends IntentService {
                     ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
             PackageInfo archive = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
             if (archive == null || archive.packageName == null) {
-                postStatus("Invalid update APK", "YWAI.apk could not be parsed as a signed APK.");
+                postStatus("Update couldn’t be verified", "Please try downloading the update again.");
                 return;
             }
             if (!getPackageName().equals(archive.packageName)) {
-                postStatus("Wrong APK", "YWAI.apk is for " + archive.packageName + ", not " + getPackageName() + ".");
+                postStatus("Incompatible update", "This update isn’t compatible with this app.");
                 return;
             }
 
@@ -62,8 +62,7 @@ public class InstallUpdateService extends IntentService {
             long updateVersion = Build.VERSION.SDK_INT >= 28
                     ? archive.getLongVersionCode() : archive.versionCode;
             if (updateVersion <= installedVersion) {
-                postStatus("No newer update", "YWAI.apk version " + updateVersion
-                        + " is not newer than installed version " + installedVersion + ".");
+                postStatus("Already up to date", "You’re already using the latest version.");
                 return;
             }
 
@@ -72,7 +71,7 @@ public class InstallUpdateService extends IntentService {
             if (installedSigners == null || installedSigners.length == 0
                     || updateSigners == null || updateSigners.length == 0
                     || !sameSigners(installedSigners, updateSigners)) {
-                postStatus("Signing key mismatch", "YWAI.apk is not signed with the installed app's certificate.");
+                postStatus("Update couldn’t be verified", "Please contact your administrator.");
                 return;
             }
 
@@ -109,7 +108,7 @@ public class InstallUpdateService extends IntentService {
                 try { installer.abandonSession(sessionId); } catch (Exception ignored) { }
             }
             postStatus("Could not start update",
-                    error.getMessage() == null ? "PackageInstaller could not process YWAI.apk." : error.getMessage());
+                    "Please try again or contact your administrator.");
         }
     }
 
