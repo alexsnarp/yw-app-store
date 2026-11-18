@@ -126,8 +126,6 @@ public class MainActivity extends Activity {
         topLine.addView(eyebrow,new LinearLayout.LayoutParams(0,-2,1));
         Button refresh=actionButton("↻  Refresh",false);
         refresh.setTextSize(12);
-        refresh.setTextColor(Color.WHITE);
-        refresh.setBackground(focusShape(0x332b83c8,0xff79c8ff,1));
         refresh.setOnClickListener(v->refreshCatalog());
         topLine.addView(refresh,new LinearLayout.LayoutParams(-2,dp(40)));
         hero.addView(topLine);
