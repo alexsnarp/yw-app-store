@@ -91,11 +91,24 @@ public class MainActivity extends Activity {
         view.setImageResource(android.R.drawable.sym_def_app_icon);
     }
     private boolean sameSigningCertificates(PackageInfo installed,PackageInfo archive){
-        android.content.pm.Signature[] a,b;
         if(Build.VERSION.SDK_INT>=28){
             if(installed.signingInfo==null||archive.signingInfo==null)return false;
-            a=installed.signingInfo.getApkContentsSigners();b=archive.signingInfo.getApkContentsSigners();
-        }else{a=installed.signatures;b=archive.signatures;}
+            android.content.pm.SigningInfo oldInfo=installed.signingInfo;
+            android.content.pm.SigningInfo newInfo=archive.signingInfo;
+            android.content.pm.Signature[] oldCurrent=oldInfo.getApkContentsSigners();
+            android.content.pm.Signature[] newCurrent=newInfo.getApkContentsSigners();
+            if(oldCurrent==null||newCurrent==null||oldCurrent.length==0||newCurrent.length==0)return false;
+            if(oldInfo.hasMultipleSigners()||newInfo.hasMultipleSigners())return sameSignerSet(oldCurrent,newCurrent);
+            // For a single signer, allow Android signing-key rotation only when the
+            // incoming APK's verified signing lineage includes the currently installed signer.
+            android.content.pm.Signature[] lineage=newInfo.getSigningCertificateHistory();
+            if(lineage!=null)for(android.content.pm.Signature oldSigner:oldCurrent)
+                for(android.content.pm.Signature trusted:lineage)if(oldSigner.equals(trusted))return true;
+            return false;
+        }
+        return sameSignerSet(installed.signatures,archive.signatures);
+    }
+    private boolean sameSignerSet(android.content.pm.Signature[] a,android.content.pm.Signature[] b){
         if(a==null||b==null||a.length==0||a.length!=b.length)return false;
         boolean[] matched=new boolean[b.length];
         for(android.content.pm.Signature signer:a){boolean found=false;for(int i=0;i<b.length;i++){if(!matched[i]&&signer.equals(b[i])){matched[i]=true;found=true;break;}}if(!found)return false;}
