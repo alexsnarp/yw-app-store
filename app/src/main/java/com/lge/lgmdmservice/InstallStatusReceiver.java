@@ -27,7 +27,7 @@ public class InstallStatusReceiver extends BroadcastReceiver {
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(nm==null)return;
         if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(new NotificationChannel(CHANNEL,"App installation",NotificationManager.IMPORTANCE_DEFAULT));
         Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(c,CHANNEL):new Notification.Builder(c);
-        b.setSmallIcon(R.drawable.ic_status_check).setLargeIcon(loadInstalledIcon(c,pkg)).setContentTitle("App installed").setContentText(name+" was installed successfully").setAutoCancel(true);
+        b.setSmallIcon(R.drawable.ic_yw_notification).setLargeIcon(loadInstalledIcon(c,pkg)).setContentTitle("App installed").setContentText(name+" was installed successfully").setAutoCancel(true);
         nm.notify((int)(System.currentTimeMillis()&0x7fffffff),b.build());
     }
 }
