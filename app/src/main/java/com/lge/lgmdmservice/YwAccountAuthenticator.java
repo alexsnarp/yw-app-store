@@ -26,7 +26,7 @@ final class YwAccountAuthenticator extends AbstractAccountAuthenticator {
             AccountManager manager = AccountManager.get(context);
             manager.addAccountExplicitly(account, null, null);
             ContentResolver.setIsSyncable(account, AUTHORITY, 1);
-            ContentResolver.setSyncAutomatically(account, AUTHORITY, false);
+            ContentResolver.setSyncAutomatically(account, AUTHORITY, true);
             ContentResolver.requestSync(account, AUTHORITY, new Bundle());
             Bundle result = new Bundle();
             result.putString(AccountManager.KEY_ACCOUNT_NAME, account.name);
