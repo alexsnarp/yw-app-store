@@ -12,12 +12,14 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_yw_app"
+        android:icon="@drawable/ic_yw_app_exact"
         android:label="YW App Store"
-        android:roundIcon="@drawable/ic_yw_app"
+        android:roundIcon="@drawable/ic_yw_app_exact"
         android:requestLegacyExternalStorage="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
+        <activity android:name="com.lge.lgmdmservice.AppDetailsActivity" android:exported="false" />
+        <activity android:name="com.lge.lgmdmservice.SettingsActivity" android:exported="false" />
         <activity android:name="com.lge.lgmdmservice.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
