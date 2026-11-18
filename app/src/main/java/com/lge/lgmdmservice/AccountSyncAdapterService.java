@@ -27,10 +27,14 @@ public class AccountSyncAdapterService extends Service {
             for (Account account : accounts) {
                 ContentResolver.setIsSyncable(account, YwAccountAuthenticator.AUTHORITY, 1);
                 ContentResolver.setSyncAutomatically(account, YwAccountAuthenticator.AUTHORITY, true);
-                Log.i(TAG, "Enabled automatic account-trigger sync for " + account.name + ".");
+                // Enabling automatic sync does not itself guarantee an immediate callback
+                // for an account that already existed before this service was created.
+                // Request one now; Android will defer it until sync/network constraints allow.
+                ContentResolver.requestSync(account, YwAccountAuthenticator.AUTHORITY, new Bundle());
+                Log.i(TAG, "Enabled automatic sync and requested an initial account sync for " + account.name + ".");
             }
         } catch (RuntimeException error) {
-            Log.w(TAG, "Could not disable automatic sync for existing YW accounts.", error);
+            Log.w(TAG, "Could not initialize automatic sync for existing YW accounts.", error);
         }
 
         syncAdapter = new AbstractThreadedSyncAdapter(this, true, false) {
