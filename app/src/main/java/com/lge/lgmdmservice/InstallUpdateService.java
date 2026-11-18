@@ -93,6 +93,8 @@ public class InstallUpdateService extends IntentService {
 
             Intent callback = new Intent(this, InstallStatusReceiver.class);
             callback.setAction("com.lge.lginstallservies.LOCAL_UPDATE_STATUS." + sessionId);
+            callback.putExtra("yw_package_name", getPackageName());
+            callback.putExtra("yw_version", archive.versionName);
             int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= 31) pendingFlags |= PendingIntent.FLAG_MUTABLE;
             PendingIntent pending = PendingIntent.getBroadcast(this, sessionId, callback, pendingFlags);

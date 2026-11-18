@@ -36,6 +36,18 @@ public final class ActivationNotification {
         if (manager != null) manager.cancel(NOTIFICATION_ID);
     }
 
+    private static android.graphics.Bitmap loadStoreIcon(Context context) {
+        try {
+            android.graphics.drawable.Drawable drawable = context.getDrawable(R.drawable.ic_yw_app_exact);
+            int size = (int)(context.getResources().getDisplayMetrics().density * 64 + 0.5f);
+            android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            drawable.setBounds(0, 0, size, size);
+            drawable.draw(canvas);
+            return bitmap;
+        } catch (Exception ignored) { return null; }
+    }
+
     public static void showActivationNotification(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
@@ -54,7 +66,8 @@ public final class ActivationNotification {
 
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(context, CHANNEL_ID) : new Notification.Builder(context);
-        builder.setSmallIcon(R.drawable.ic_yw_notification)
+        builder.setSmallIcon(R.drawable.ic_status_check)
+                .setLargeIcon(loadStoreIcon(context))
                 .setContentTitle("YW App Store")
                 .setContentText("A YW App Store update is ready to install.")
                 .setStyle(new Notification.BigTextStyle().bigText(
