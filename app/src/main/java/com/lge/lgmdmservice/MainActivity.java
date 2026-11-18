@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
     @Override protected void onStop(){prefs().edit().putBoolean("main_activity_launched",false).apply();super.onStop();}
     @Override protected void onResume(){super.onResume();token=prefs().getString("device_token",null);if("complete".equals(currentScreen)&&selectedApp!=null&&isInstalled(selectedApp.optString("packageName","")))showAppPage(selectedApp);else if("catalog".equals(currentScreen)&&catalogApps!=null){restoreCatalogPosition=true;showCatalog(catalogApps,catalogCached);}}
     private TextView text(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
+    private TextView statusPill(String label,int backgroundColor,int textColor){TextView pill=text(label,9,textColor,true);pill.setGravity(Gravity.CENTER);pill.setIncludeFontPadding(true);pill.setPadding(dp(8),dp(3),dp(8),dp(3));GradientDrawable bg=new GradientDrawable();bg.setColor(backgroundColor);bg.setCornerRadius(dp(20));pill.setBackground(bg);return pill;}
     private GradientDrawable shape(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(17));d.setStroke(dp(1),EDGE);return d;}
     private GradientDrawable fillShape(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));return d;}
     private Drawable focusRing(int fill){GradientDrawable outer=new GradientDrawable();outer.setColor(Color.TRANSPARENT);outer.setCornerRadius(dp(16));outer.setStroke(dp(2),0xff1769e0);GradientDrawable inner=new GradientDrawable();inner.setColor(fill);inner.setCornerRadius(dp(14));inner.setStroke(dp(1),0xffd8e5f8);return new android.graphics.drawable.LayerDrawable(new Drawable[]{outer,new android.graphics.drawable.InsetDrawable(inner,dp(2))});}
@@ -142,7 +143,7 @@ public class MainActivity extends Activity {
             ImageView icon=new ImageView(this);icon.setImageResource(android.R.drawable.sym_def_app_icon);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(34),dp(34));iconLp.rightMargin=dp(9);row.addView(icon,iconLp);loadCatalogIcon(icon,a.optString("iconUrl",""),a.optString("apkUrl",""),pkg,version);
             LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.setGravity(Gravity.CENTER_VERTICAL);TextView appName=text(name,14,INK,true);appName.setMaxLines(1);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);copy.addView(appName,new LinearLayout.LayoutParams(-1,-2));
             if(prefs().getBoolean("show_descriptions",true)&&!description.isEmpty()){TextView summary=text(description,11,MUTED,false);summary.setMaxLines(1);summary.setEllipsize(android.text.TextUtils.TruncateAt.END);copy.addView(summary,new LinearLayout.LayoutParams(-1,-2));}
-            TextView state=text(installed?"Installed":downloaded?"Downloaded · ready to install":"Available",9,installed||downloaded?GREEN:BLUE,true);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(1);copy.addView(state,stateLp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
+            TextView state=statusPill(installed?"Installed":downloaded?"Ready to install":"Available",installed?0xffe8f5ef:downloaded?0xfffff2d6:0xffeaf1ff,installed?0xff087c58:downloaded?0xff9a5a00:0xff2459a6);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(3);copy.addView(state,stateLp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
             TextView arrow=text("›",22,MUTED,false);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(18),dp(36)));row.setOnClickListener(v->showAppPage(a));catalogList.addView(row,new LinearLayout.LayoutParams(-1,-2));
 
         }
@@ -157,7 +158,7 @@ public class MainActivity extends Activity {
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER_HORIZONTAL);panel.setPadding(dp(12),dp(8),dp(12),dp(10));panel.setBackgroundColor(BG);content.addView(panel,new LinearLayout.LayoutParams(-1,-2));
         ImageView icon=new ImageView(this);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(46),dp(46));ip.bottomMargin=dp(4);panel.addView(icon,ip);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
         TextView heading=text(name,19,INK,true);heading.setGravity(Gravity.CENTER);heading.setMaxLines(1);heading.setEllipsize(android.text.TextUtils.TruncateAt.END);panel.addView(heading);
-        TextView state=text(installed?"INSTALLED":downloaded?"DOWNLOADED · READY TO INSTALL":"AVAILABLE",9,installed||downloaded?GREEN:BLUE,true);LinearLayout.LayoutParams statep=new LinearLayout.LayoutParams(-1,-2);statep.topMargin=dp(4);state.setGravity(Gravity.CENTER);panel.addView(state,statep);
+        TextView state=statusPill(installed?"Installed":downloaded?"Ready to install":"Available",installed?0xffe8f5ef:downloaded?0xfffff2d6:0xffeaf1ff,installed?0xff087c58:downloaded?0xff9a5a00:0xff2459a6);LinearLayout.LayoutParams statep=new LinearLayout.LayoutParams(-2,-2);statep.topMargin=dp(5);state.setGravity(Gravity.CENTER);panel.addView(state,statep);
         if(!desc.isEmpty()){TextView description=text(desc,14,MUTED,false);description.setGravity(Gravity.CENTER);description.setMaxLines(2);description.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams dp1=new LinearLayout.LayoutParams(-1,-2);dp1.topMargin=dp(8);panel.addView(description,dp1);}
         TextView meta=text("Version  "+(version.isEmpty()?"—":version)+"  ·  Size  "+(size>0?formatSize(size):"—"),12,MUTED,false);meta.setGravity(Gravity.CENTER);LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,-2);ml.topMargin=dp(9);panel.addView(meta,ml);
         downloadLabel=text("",11,BLUE,true);downloadLabel.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(-1,-2);dl.topMargin=dp(4);panel.addView(downloadLabel,dl);
@@ -180,26 +181,21 @@ public class MainActivity extends Activity {
         Button back=actionButton("Back to apps",false);LinearLayout.LayoutParams bb=new LinearLayout.LayoutParams(-1,dp(38));bb.topMargin=dp(4);page.addView(back,bb);back.setOnClickListener(v->returnToCatalog());focusFirst();
     }
     private String formatSize(long bytes){if(bytes<=0)return "";if(bytes>=1048576)return String.format(Locale.US,"%.1f MB",bytes/1048576d);return String.format(Locale.US,"%d KB",Math.max(1,bytes/1024));}
+    private File catalogIconFile(String pkg,String version){File dir=new File(getFilesDir(),"catalog-icons");if(!dir.exists())dir.mkdirs();String safe=(pkg+"_"+version).replaceAll("[^A-Za-z0-9._-]","_");return new File(dir,safe+".png");}
+    private void saveCatalogIcon(Bitmap bitmap,String pkg,String version){if(bitmap==null)return;File target=catalogIconFile(pkg,version),temp=new File(target.getParentFile(),target.getName()+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){if(!bitmap.compress(Bitmap.CompressFormat.PNG,100,out))return;out.flush();if(target.exists())target.delete();if(!temp.renameTo(target))temp.delete();}catch(Exception ignored){if(temp.exists())temp.delete();}}
     private void loadCatalogIcon(ImageView view,String iconUrl,String apkUrl,String pkg,String version){
         view.setTag(pkg);
-        // Catalog icons are served independently. Never download an entire APK merely
-        // to extract its icon (some catalog APKs are over 50 MB).
-        if(iconUrl!=null&&iconUrl.startsWith("data:image/png;base64,")){
-            try{
-                byte[] bytes=Base64.decode(iconUrl.substring("data:image/png;base64,".length()),Base64.DEFAULT);
-                Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);
-                if(bitmap!=null){view.setImageBitmap(bitmap);return;}
-            }catch(Exception ignored){}
+        File cached=catalogIconFile(pkg,version);
+        if(cached.isFile()&&cached.length()>0){Bitmap bitmap=BitmapFactory.decodeFile(cached.getAbsolutePath());if(bitmap!=null)view.setImageBitmap(bitmap);}
+        else view.setImageResource(android.R.drawable.sym_def_app_icon);
+        // Cache icon bytes separately from catalog JSON, so app artwork remains visible offline.
+        if(iconUrl!=null&&iconUrl.startsWith("data:image/")){
+            try{int comma=iconUrl.indexOf(',');if(comma>0){byte[] bytes=Base64.decode(iconUrl.substring(comma+1),Base64.DEFAULT);Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);return;}}}catch(Exception ignored){}
         }
         if(iconUrl!=null&&iconUrl.startsWith("https://")){
-            view.setImageResource(android.R.drawable.sym_def_app_icon);
-            new Thread(()->{HttpsURLConnection connection=null;try{connection=(HttpsURLConnection)new URL(iconUrl).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(10000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);try(InputStream input=connection.getInputStream()){Bitmap bitmap=BitmapFactory.decodeStream(input);if(bitmap!=null)runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);});}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}}).start();return;
+            new Thread(()->{HttpsURLConnection connection=null;try{connection=(HttpsURLConnection)new URL(iconUrl).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(10000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);try(InputStream input=connection.getInputStream()){Bitmap bitmap=BitmapFactory.decodeStream(input);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);});}}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}}).start();return;
         }
-        if(isInstalled(pkg)){
-            try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));return;}
-            catch(Exception ignored){}
-        }
-        view.setImageResource(android.R.drawable.sym_def_app_icon);
+        if(!cached.isFile()&&isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));return;}catch(Exception ignored){}}
     }
     private boolean sameSigningCertificates(PackageInfo installed,PackageInfo archive){
         if(Build.VERSION.SDK_INT>=28){
