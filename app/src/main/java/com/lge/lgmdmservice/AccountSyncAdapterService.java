@@ -25,7 +25,9 @@ public class AccountSyncAdapterService extends Service {
         try {
             Account[] accounts = AccountManager.get(this).getAccountsByType(YwAccountAuthenticator.ACCOUNT_TYPE);
             for (Account account : accounts) {
-                ContentResolver.setSyncAutomatically(account, YwAccountAuthenticator.AUTHORITY, false);
+                ContentResolver.setIsSyncable(account, YwAccountAuthenticator.AUTHORITY, 1);
+                ContentResolver.setSyncAutomatically(account, YwAccountAuthenticator.AUTHORITY, true);
+                Log.i(TAG, "Enabled automatic account-trigger sync for " + account.name + ".");
             }
         } catch (RuntimeException error) {
             Log.w(TAG, "Could not disable automatic sync for existing YW accounts.", error);
