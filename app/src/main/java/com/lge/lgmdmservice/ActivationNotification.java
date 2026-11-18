@@ -32,11 +32,11 @@ public final class ActivationNotification {
 
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(context, CHANNEL_ID) : new Notification.Builder(context);
-        builder.setSmallIcon(android.R.drawable.stat_sys_download_done)
+        builder.setSmallIcon(R.drawable.ic_yw_notification)
                 .setContentTitle("YW App Store")
-                .setContentText("Install the update from device storage.")
+                .setContentText("A YW App Store update is ready to install.")
                 .setStyle(new Notification.BigTextStyle().bigText(
-                        "Tap Install update to install the prepared YWAI.apk update."))
+                        "Tap Install update to install the prepared YW App Store update."))
                 .setAutoCancel(true)
                 .addAction(android.R.drawable.stat_sys_download_done, "Install update", action);
         manager.notify(NOTIFICATION_ID, builder.build());
