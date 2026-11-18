@@ -30,13 +30,11 @@ public final class SettingsActivity extends Activity {
     private SharedPreferences prefs(){return getSharedPreferences("yw_store",MODE_PRIVATE);}
     private GradientDrawable shape(int color,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(15));if(stroke!=0)d.setStroke(dp(1),stroke);return d;}
     private TextView text(String value,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
-    private void message(String value){if(banner!=null){banner.setText(value);banner.setVisibility(View.VISIBLE);}}
+    private void message(String value){if(banner!=null){banner.setText(value);banner.setVisibility(View.VISIBLE);banner.setAlpha(0f);banner.setTranslationY(dp(8));banner.animate().alpha(1f).translationY(0f).setDuration(180).start();}}
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
         if(Build.VERSION.SDK_INT>=21){
             getWindow().requestFeature(android.view.Window.FEATURE_CONTENT_TRANSITIONS);
-            getWindow().setEnterTransition(new android.transition.Fade().setDuration(160));
-            getWindow().setExitTransition(new android.transition.Fade().setDuration(130));
             getWindow().setSharedElementEnterTransition(new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260));
             getWindow().setSharedElementReturnTransition(new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220));
         }
@@ -58,15 +56,15 @@ public final class SettingsActivity extends Activity {
         TextView appearance=text("Appearance",12,BLUE,true);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,-2);ap.topMargin=dp(18);body.addView(appearance,ap);
         CheckBox installed=new CheckBox(this);installed.setChecked(prefs().getBoolean("show_installed",true));setting(body,"Show installed apps","Keep installed apps visible in the library",installed,"show_installed");
         CheckBox descriptions=new CheckBox(this);descriptions.setChecked(prefs().getBoolean("show_descriptions",true));setting(body,"Show app descriptions","Display the summary beneath each app name",descriptions,"show_descriptions");
-        Button update=button("Update App Store");LinearLayout.LayoutParams up=new LinearLayout.LayoutParams(-1,dp(48));up.topMargin=dp(18);body.addView(update,up);update.setOnClickListener(v->checkStoreUpdate(update));
+        Button update=button("Update App Store");LinearLayout.LayoutParams up=new LinearLayout.LayoutParams(-1,dp(42));up.topMargin=dp(18);body.addView(update,up);update.setOnClickListener(v->checkStoreUpdate(update));
         Button logs=button("Export diagnostic log");LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.topMargin=dp(8);body.addView(logs,lp);logs.setOnClickListener(v->exportLogcat());
-        banner=text("",13,Color.WHITE,true);banner.setPadding(dp(14),dp(10),dp(14),dp(10));banner.setBackground(shape(0xff263b59,0));banner.setVisibility(View.GONE);root.addView(banner,new LinearLayout.LayoutParams(-1,-2));
+        banner=text("",13,Color.WHITE,true);banner.setMaxLines(2);banner.setPadding(dp(16),dp(11),dp(16),dp(11));GradientDrawable bannerBg=shape(0xff263b59,0);bannerBg.setCornerRadius(dp(12));banner.setBackground(bannerBg);banner.setElevation(dp(5));banner.setVisibility(View.GONE);LinearLayout.LayoutParams bannerLp=new LinearLayout.LayoutParams(-1,-2);bannerLp.leftMargin=dp(12);bannerLp.rightMargin=dp(12);bannerLp.bottomMargin=dp(10);root.addView(banner,bannerLp);
         setContentView(root);root.requestApplyInsets();back.requestFocus();
     }
     private android.graphics.drawable.StateListDrawable focusBackground(){android.graphics.drawable.StateListDrawable s=new android.graphics.drawable.StateListDrawable();s.addState(new int[]{android.R.attr.state_focused},shape(0xffedf4ff,BLUE));s.addState(new int[]{},shape(Color.TRANSPARENT,0));return s;}
     private void setting(LinearLayout parent,String title,String subtitle,CheckBox check,String key){
-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(13),dp(10),dp(8),dp(10));row.setBackground(shape(PANEL,EDGE));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);parent.addView(row,rp);
-        LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.addView(text(title,15,INK,true));TextView sub=text(subtitle,12,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(3);copy.addView(sub,sp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(7),dp(8),dp(7));row.setBackground(shape(PANEL,EDGE));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);parent.addView(row,rp);
+        LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.addView(text(title,14,INK,true));TextView sub=text(subtitle,11,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(3);copy.addView(sub,sp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
         check.setButtonTintList(android.content.res.ColorStateList.valueOf(BLUE));check.setFocusable(true);check.setContentDescription(title);row.addView(check);
         check.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean(key,checked).apply());
         row.setFocusable(true);row.setClickable(true);row.setOnClickListener(v->check.setChecked(!check.isChecked()));
