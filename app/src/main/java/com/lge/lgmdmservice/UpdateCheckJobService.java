@@ -13,7 +13,10 @@ public class UpdateCheckJobService extends JobService {
 
     public static void schedule(Context context) {
         JobScheduler scheduler = (JobScheduler) context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        if (scheduler == null || scheduler.getPendingJob(JOB_ID) != null) return;
+        if (scheduler == null) return;
+        for (JobInfo pending : scheduler.getAllPendingJobs()) {
+            if (pending.getId() == JOB_ID) return;
+        }
         JobInfo job = new JobInfo.Builder(JOB_ID, new ComponentName(context, UpdateCheckJobService.class))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .setPeriodic(12L * 60L * 60L * 1000L)
