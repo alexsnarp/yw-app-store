@@ -36,6 +36,7 @@ public class AccountSyncAdapterService extends Service {
                     ContentProviderClient provider, SyncResult syncResult) {
                 NotificationManager manager = (NotificationManager)
                         appContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                Log.i(TAG, "Account sync callback received for " + account.name + ".");
                 if (isMainActivityForeground(appContext)) {
                     if (manager != null) manager.cancel(2301);
                     Log.i(TAG, "Main screen is active; activation notification suppressed.");
@@ -48,6 +49,7 @@ public class AccountSyncAdapterService extends Service {
                 }
                 Log.i(TAG, "Account sync trigger received on an allowed network; posting notification.");
                 ActivationNotification.showActivationNotification(appContext);
+                Log.i(TAG, "Activation notification posted.");
             }
         };
     }
