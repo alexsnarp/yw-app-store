@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.app.ActivityManager;
 import android.content.Intent;
 import android.os.Build;
 
@@ -13,6 +14,27 @@ public final class ActivationNotification {
     private static final int NOTIFICATION_ID = 2301;
 
     private ActivationNotification() { }
+
+    public static void showIfAllowedAndBackground(Context context) {
+        if (!NetworkAccess.isAllowed(context)) { cancel(context); return; }
+        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am != null) {
+            java.util.List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
+            if (processes != null) for (ActivityManager.RunningAppProcessInfo process : processes) {
+                if (context.getPackageName().equals(process.processName)
+                        && (process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                        || process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE)) {
+                    cancel(context); return;
+                }
+            }
+        }
+        showActivationNotification(context);
+    }
+
+    public static void cancel(Context context) {
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.cancel(NOTIFICATION_ID);
+    }
 
     public static void showActivationNotification(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
