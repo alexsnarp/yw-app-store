@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
             if(prefs().getBoolean("show_descriptions",true)&&!description.isEmpty()){TextView summary=text(description,11,MUTED,false);summary.setMaxLines(1);summary.setEllipsize(android.text.TextUtils.TruncateAt.END);copy.addView(summary,new LinearLayout.LayoutParams(-1,-2));}
             TextView state=text(installed?"Installed":downloaded?"Downloaded · ready to install":"Available",9,installed||downloaded?GREEN:BLUE,true);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(1);copy.addView(state,stateLp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
             TextView arrow=text("›",22,MUTED,false);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(18),dp(36)));row.setOnClickListener(v->showAppPage(a));catalogList.addView(row,new LinearLayout.LayoutParams(-1,-2));
-            View divider=new View(this);divider.setBackgroundColor(EDGE);catalogList.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+
         }
         if(shown==0){TextView empty=text("No apps are currently listed.",14,MUTED,false);empty.setGravity(Gravity.CENTER);catalogList.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
         focusFirst();if(restoreCatalogPosition){restoreCatalogPosition=false;pageScroll.post(()->pageScroll.scrollTo(0,catalogScrollY));}else if(catalogScrollY==0)pageScroll.post(()->pageScroll.scrollTo(0,0));
