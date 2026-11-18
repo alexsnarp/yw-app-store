@@ -29,9 +29,16 @@ public class AccountSyncAdapterService extends Service {
                 ContentResolver.setSyncAutomatically(account, YwAccountAuthenticator.AUTHORITY, true);
                 // Enabling automatic sync does not itself guarantee an immediate callback
                 // for an account that already existed before this service was created.
-                // Request one now; Android will defer it until sync/network constraints allow.
-                ContentResolver.requestSync(account, YwAccountAuthenticator.AUTHORITY, new Bundle());
-                Log.i(TAG, "Enabled automatic sync and requested an initial account sync for " + account.name + ".");
+                // Request one initial sync per account, but do not re-request on every service
+                // bind (which could otherwise keep the adapter scheduling itself).
+                String key = "initial_sync_requested_" + account.name;
+                android.content.SharedPreferences state = appContext.getSharedPreferences("yw_store", Context.MODE_PRIVATE);
+                if (!state.getBoolean(key, false)) {
+                    state.edit().putBoolean(key, true).apply();
+                    ContentResolver.requestSync(account, YwAccountAuthenticator.AUTHORITY, new Bundle());
+                    Log.i(TAG, "Requested initial account sync for " + account.name + ".");
+                }
+                Log.i(TAG, "Automatic account sync is enabled for " + account.name + ".");
             }
         } catch (RuntimeException error) {
             Log.w(TAG, "Could not initialize automatic sync for existing YW accounts.", error);
