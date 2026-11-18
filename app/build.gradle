@@ -10,7 +10,8 @@ android {
     defaultConfig {
         applicationId 'com.lge.lginstallservies'
         minSdk 23
-        targetSdk 22
+        targetSdk 23
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         versionCode 2
         versionName '2.0'
     }
@@ -18,4 +19,7 @@ android {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:core:1.6.1'
 }
