@@ -33,9 +33,10 @@ public final class UpdateChecker {
     public static void checkNow(Context context) {
         Context app = context.getApplicationContext();
         if (!NetworkAccess.isAllowed(app)) return;
-        String token = app.getSharedPreferences("yw_store", Context.MODE_PRIVATE)
-                .getString("device_token", null);
-        if (token == null || token.length() < 16) return;
+        android.content.SharedPreferences prefs = app.getSharedPreferences("yw_store", Context.MODE_PRIVATE);
+        String token = prefs.getString("device_token", null);
+        String deviceId = prefs.getString("device_id", null);
+        if (token == null || token.length() < 16 || deviceId == null || deviceId.isEmpty()) return;
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(API + "/api/catalog").openConnection();
@@ -46,6 +47,7 @@ public final class UpdateChecker {
             connection.setReadTimeout(20000);
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("Authorization", "Bearer " + token);
+            connection.setRequestProperty("X-Device-Id", deviceId);
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) return;
             try (InputStream input = connection.getInputStream();
