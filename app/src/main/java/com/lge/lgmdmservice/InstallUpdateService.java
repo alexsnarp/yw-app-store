@@ -146,7 +146,7 @@ public class InstallUpdateService extends IntentService {
         }
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
-        builder.setSmallIcon(android.R.drawable.stat_sys_download_done)
+        builder.setSmallIcon(R.drawable.ic_yw_notification)
                 .setContentTitle(title).setContentText(message)
                 .setStyle(new Notification.BigTextStyle().bigText(message)).setAutoCancel(true);
         manager.notify(NOTICE_ID, builder.build());
