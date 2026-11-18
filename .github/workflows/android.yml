@@ -24,6 +24,13 @@ jobs:
         run: gradle --no-daemon lintDebug
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
+      - name: Android 6 startup smoke tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 23
+          arch: x86
+          profile: Nexus 6
+          script: gradle --no-daemon connectedDebugAndroidTest
       - name: Package source ZIP
         run: git archive --format=zip --output=yw-app-store-source.zip HEAD
       - name: Upload source ZIP
