@@ -51,17 +51,17 @@ public class MainActivity extends Activity {
     private TextView text(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
     private GradientDrawable shape(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(17));d.setStroke(dp(1),EDGE);return d;}
     private GradientDrawable fillShape(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));return d;}
-    private Drawable focusRing(int fill){GradientDrawable outer=new GradientDrawable();outer.setColor(Color.TRANSPARENT);outer.setCornerRadius(dp(15));outer.setStroke(dp(4),GOLD);GradientDrawable inner=new GradientDrawable();inner.setColor(fill);inner.setCornerRadius(dp(11));inner.setStroke(dp(1),Color.WHITE);return new android.graphics.drawable.LayerDrawable(new Drawable[]{outer,new android.graphics.drawable.InsetDrawable(inner,dp(4))});}
+    private Drawable focusRing(int fill){GradientDrawable outer=new GradientDrawable();outer.setColor(Color.TRANSPARENT);outer.setCornerRadius(dp(16));outer.setStroke(dp(2),0xff1769e0);GradientDrawable inner=new GradientDrawable();inner.setColor(fill);inner.setCornerRadius(dp(14));inner.setStroke(dp(1),0xffd8e5f8);return new android.graphics.drawable.LayerDrawable(new Drawable[]{outer,new android.graphics.drawable.InsetDrawable(inner,dp(2))});}
     private Button actionButton(String label,boolean primary){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(14);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(46));b.setPadding(dp(14),dp(7),dp(14),dp(7));b.setFocusable(true);b.setFocusableInTouchMode(false);b.setTextColor(primary?Color.WHITE:BLUE_DARK);StateListDrawable states=new StateListDrawable();states.addState(new int[]{android.R.attr.state_focused},focusRing(primary?BLUE_DARK:0xfffff3c4));states.addState(new int[]{android.R.attr.state_pressed},focusRing(primary?BLUE_DARK:0xfffff8e6));states.addState(new int[]{},primary?fillShape(BLUE):focusShape(PANEL,EDGE,1));b.setBackground(states);return b;}
     private GradientDrawable focusShape(int color,int strokeColor,int strokeWidth){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));d.setStroke(dp(strokeWidth),strokeColor);return d;}
     private StateListDrawable focusBackground(){StateListDrawable states=new StateListDrawable();states.addState(new int[]{android.R.attr.state_focused},focusRing(0xfffff7df));states.addState(new int[]{android.R.attr.state_pressed},focusRing(0xffe8efff));states.addState(new int[]{},focusShape(PANEL,EDGE,1));return states;}
     private void style(View v){if(v.isFocusable()){if(!(v instanceof Button))v.setBackground(focusBackground());v.setFocusable(true);v.setFocusableInTouchMode(v instanceof EditText);if(v instanceof Button){v.setFocusable(true);v.setFocusableInTouchMode(false);v.setMinimumHeight(dp(38));}else{v.setPadding(dp(12),dp(9),dp(12),dp(9));}if(v instanceof Button){((Button)v).setAllCaps(false);((Button)v).setTextSize(14);}}if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)style(g.getChildAt(i));}}
     private void render(){
         root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(6),dp(10),dp(6));root.setBackgroundColor(BG);
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(4),dp(1),dp(2),dp(5));
-        TextView logo=text("YW",17,Color.WHITE,true);logo.setGravity(Gravity.CENTER);logo.setBackground(fillShape(0xff10285a));header.addView(logo,new LinearLayout.LayoutParams(dp(42),dp(38)));
-        TextView title=text("YW",17,INK,true);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1);titleLp.leftMargin=dp(9);header.addView(title,titleLp);
-        if(token!=null){TextView settings=text("⚙",23,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(38)));}
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(3),dp(2),dp(2),dp(7));
+        ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.ic_yw_app);logo.setScaleType(ImageView.ScaleType.FIT_CENTER);header.addView(logo,new LinearLayout.LayoutParams(dp(38),dp(38)));
+        TextView title=text("YW App Store",16,INK,true);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1);titleLp.leftMargin=dp(10);header.addView(title,titleLp);
+        if(token!=null){TextView settings=text("⚙",21,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(40),dp(38)));}
         root.addView(header);View line=new View(this);line.setBackgroundColor(EDGE);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(2),dp(5),dp(2),dp(8));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(token==null){authorizationView();}else{loadCatalog();}
@@ -111,7 +111,7 @@ public class MainActivity extends Activity {
         TextView refresh=text("↻",22,BLUE,true);refresh.setGravity(Gravity.CENTER);refresh.setContentDescription("Refresh catalog");refresh.setFocusable(true);refresh.setBackground(focusBackground());refresh.setOnClickListener(v->refreshCatalog());bar.addView(refresh,new LinearLayout.LayoutParams(dp(38),dp(34)));content.addView(bar);
         catalogList=new GridLayout(this);catalogList.setOrientation(GridLayout.HORIZONTAL);catalogList.setAlignmentMode(GridLayout.ALIGN_BOUNDS);catalogList.setUseDefaultMargins(false);
         int widthDp=(int)(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);
-        int columns=Math.max(2,Math.min(5,widthDp/142));catalogList.setColumnCount(columns);
+        int columns=Math.max(2,Math.min(6,widthDp/112));catalogList.setColumnCount(columns);
         LinearLayout.LayoutParams gridLp=new LinearLayout.LayoutParams(-1,-2);content.addView(catalogList,gridLp);
         int shown=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
         for(int i=0;i<apps.length();i++){
@@ -120,13 +120,13 @@ public class MainActivity extends Activity {
             if(installed&&!showInstalled)continue;
             shown++;String name=a.optString("name","App"),version=a.optString("version","");
             int row=shown-1;GridLayout.LayoutParams cell=new GridLayout.LayoutParams(GridLayout.spec(row/columns),GridLayout.spec(row%columns,1f));
-            cell.width=0;cell.height=dp(139);cell.setMargins(dp(3),dp(3),dp(3),dp(3));
-            LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER_HORIZONTAL);tile.setPadding(dp(6),dp(7),dp(6),dp(5));tile.setBackground(focusBackground());tile.setFocusable(true);tile.setClickable(true);tile.setContentDescription(name+(installed?", installed":", available"));
+            cell.width=0;cell.height=dp(124);cell.setMargins(dp(4),dp(4),dp(4),dp(4));
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(LinearLayout.VERTICAL);tile.setGravity(Gravity.CENTER_HORIZONTAL);tile.setPadding(dp(5),dp(7),dp(5),dp(6));tile.setBackground(focusBackground());tile.setFocusable(true);tile.setClickable(true);tile.setContentDescription(name+(installed?", installed":", available"));
             ImageView icon=new ImageView(this);icon.setImageResource(android.R.drawable.sym_def_app_icon);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(48),dp(48));iconLp.bottomMargin=dp(4);tile.addView(icon,iconLp);
+            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(52),dp(52));iconLp.bottomMargin=dp(5);tile.addView(icon,iconLp);
             loadCatalogIcon(icon,a.optString("iconUrl",""),a.optString("apkUrl",""),pkg,version);
-            TextView appName=text(name,12,INK,true);appName.setGravity(Gravity.CENTER);appName.setMaxLines(2);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);tile.addView(appName,new LinearLayout.LayoutParams(-1,dp(31)));
-            TextView state=text(installed?"✓ Installed":"Available",10,installed?GREEN:BLUE,true);state.setGravity(Gravity.CENTER);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-1,-2);stateLp.topMargin=dp(2);tile.addView(state,stateLp);
+            TextView appName=text(name,12,INK,true);appName.setGravity(Gravity.CENTER);appName.setMaxLines(2);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);tile.addView(appName,new LinearLayout.LayoutParams(-1,dp(30)));
+            TextView state=text(installed?"✓ Installed":"Available",10,installed?GREEN:BLUE,true);state.setGravity(Gravity.CENTER);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-1,-2);stateLp.topMargin=dp(1);tile.addView(state,stateLp);
             tile.setOnClickListener(v->showAppPage(a));catalogList.addView(tile,cell);
         }
         if(shown==0){TextView empty=text("No apps in the catalog",14,MUTED,false);empty.setGravity(Gravity.CENTER);content.addView(empty);}
