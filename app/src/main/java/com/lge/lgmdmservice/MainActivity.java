@@ -142,7 +142,7 @@ public class MainActivity extends Activity {
         }catch(Exception e){runOnUiThread(()->{catalogBusy=false;String saved=prefs().getString("cached_catalog_json",null);try{if(saved!=null){JSONArray apps=new JSONArray(saved);catalogApps=apps;catalogCached=true;if("catalog".equals(currentScreen))showCatalog(apps,true);}else if(catalogApps==null)message("No internet connection.");}catch(Exception x){if(catalogApps==null)message("No internet connection.");}});}}).start();
     }
     private void message(String s){if(content==null)return;TextView t=text(s,14,MUTED,false);content.addView(t);}
-    private void returnToCatalog(){restoreCatalogPosition=true;if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);content.removeAllViews();loadCatalog();}
+    private void returnToCatalog(){if("settings".equals(detailsReturnScreen)){detailsReturnScreen="catalog";currentScreen="catalog";settings();return;}restoreCatalogPosition=true;if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);content.removeAllViews();loadCatalog();}
     private void showCatalog(JSONArray apps,boolean cached){
         currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);catalogApps=apps;catalogCached=cached;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;content.removeAllViews();
         long refreshedAt=prefs().getLong("catalog_last_refreshed",0L);String refreshed=refreshedAt>0?new java.text.SimpleDateFormat("MMM d, h:mm a",Locale.getDefault()).format(new Date(refreshedAt)):"Not refreshed yet";TextView stamp=text("Last refreshed  ·  "+refreshed,11,MUTED,false);stamp.setPadding(dp(10),dp(5),dp(10),dp(5));content.addView(stamp,new LinearLayout.LayoutParams(-1,-2));
@@ -162,7 +162,7 @@ public class MainActivity extends Activity {
         if(restoreCatalogPosition){restoreCatalogPosition=false;pageScroll.post(()->{pageScroll.scrollTo(0,catalogScrollY);View target=catalogRowViews.get(catalogFocusedPackage);if(target!=null)target.requestFocus();else focusFirst();});}else{View target=catalogRowViews.get(catalogFocusedPackage);if(target!=null)target.requestFocus();else focusFirst();if(catalogScrollY==0)pageScroll.post(()->pageScroll.scrollTo(0,0));}
     }
     private void showAppPage(JSONObject app){
-        catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");if(!focusPackage.isEmpty())catalogFocusedPackage=focusPackage;
+        if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");if(!focusPackage.isEmpty())catalogFocusedPackage=focusPackage;
         currentScreen="details";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);selectedApp=app;content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;
         String name=app.optString("name","App"),desc=app.optString("description",""),version=app.optString("version",""),pkg=app.optString("packageName",""),url=app.optString("apkUrl","");long size=app.optLong("sizeBytes",0);boolean installed=isInstalled(pkg);boolean updateAvailable=installed&&isUpdateAvailable(pkg,version);
         File savedApk=apkFile(pkg,version);boolean downloaded=isValidDownloadedApk(savedApk,pkg,version);
