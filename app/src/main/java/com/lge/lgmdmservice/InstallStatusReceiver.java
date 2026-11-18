@@ -16,7 +16,7 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             show(context,pkg);StoreReporter.report(context,pkg,version==null?"":version,"installed");
         }else{
             String detail=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-            Toast.makeText(context,"Installation did not complete"+(detail==null?"":": "+detail),Toast.LENGTH_LONG).show();
+            Toast.makeText(context,"Installation couldn’t be completed. Please try again.",Toast.LENGTH_LONG).show();
             StoreReporter.report(context,pkg,version==null?"":version,"failed");
         }
     }
@@ -27,7 +27,7 @@ public class InstallStatusReceiver extends BroadcastReceiver {
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(nm==null)return;
         if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(new NotificationChannel(CHANNEL,"App installation",NotificationManager.IMPORTANCE_DEFAULT));
         Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(c,CHANNEL):new Notification.Builder(c);
-        b.setSmallIcon(R.drawable.ic_status_check).setLargeIcon(loadInstalledIcon(c,pkg)).setContentTitle("App installed").setContentText(name+" was installed successfully").setAutoCancel(true);
+        b.setSmallIcon(R.drawable.ic_yw_notification).setLargeIcon(loadInstalledIcon(c,pkg)).setContentTitle("App installed").setContentText(name+" was installed successfully").setAutoCancel(true);
         nm.notify((int)(System.currentTimeMillis()&0x7fffffff),b.build());
     }
 }
