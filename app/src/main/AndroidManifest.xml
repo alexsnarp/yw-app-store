@@ -11,9 +11,9 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
         android:allowBackup="false"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@drawable/ic_yw_app"
         android:label="YW App Store"
-        android:roundIcon="@android:drawable/sym_def_app_icon"
+        android:roundIcon="@drawable/ic_yw_app"
         android:requestLegacyExternalStorage="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
