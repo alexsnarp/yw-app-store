@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     private String token, deviceId;
     private boolean catalogBusy;
     private JSONArray catalogApps;
-    private GridLayout catalogList;
+    private LinearLayout catalogList;
     private TextView downloadLabel;
     private ProgressBar downloadProgress;
     private LinearLayout downloadActions;
@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(3),dp(2),dp(2),dp(7));
         ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.ic_yw_app);logo.setScaleType(ImageView.ScaleType.FIT_CENTER);header.addView(logo,new LinearLayout.LayoutParams(dp(38),dp(38)));
         TextView title=text("YW App Store",16,INK,true);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(0,-2,1);titleLp.leftMargin=dp(10);header.addView(title,titleLp);
-        if(token!=null){TextView settings=text("⋮",26,INK,true);settings.setGravity(Gravity.CENTER);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(38)));}
+        if(token!=null){SettingsGlyph settings=new SettingsGlyph(this);settings.setContentDescription("Settings");settings.setFocusable(true);settings.setBackground(focusBackground());settings.setOnClickListener(v->settings());settings.setOnLongClickListener(v->{openLogcat();return true;});header.addView(settings,new LinearLayout.LayoutParams(dp(42),dp(38)));}
         root.addView(header);View line=new View(this);line.setBackgroundColor(EDGE);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setVerticalScrollBarEnabled(false);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(2),dp(5),dp(2),dp(8));content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(token==null){authorizationView();}else{loadCatalog();}
@@ -74,6 +74,11 @@ public class MainActivity extends Activity {
         Button submit=actionButton("Authorize and open catalog",true);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(50));bp.topMargin=dp(10);card.addView(submit,bp);
         submit.setOnClickListener(v->{String value=code.getText().toString().trim();if(value.length()<6){toast("Enter the authorization code.");return;}submit.setEnabled(false);new Thread(()->{try{JSONObject body=new JSONObject();body.put("code",value);body.put("deviceId",deviceId);JSONObject result=request("POST","/api/redeem",body,null);String t=result.optString("token","");if(t.length()<16)throw new IOException("Invalid device token");prefs().edit().putString("device_token",t).apply();runOnUiThread(()->{token=t;toast("Device authorized.");render();});}catch(Exception e){runOnUiThread(()->{submit.setEnabled(true);toast("Authorization failed: "+e.getMessage());});}}).start();});
         code.setOnEditorActionListener((v,id,event)->{submit.performClick();return true;});
+    }
+    private class SettingsGlyph extends View{
+        private final android.graphics.Paint paint=new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        SettingsGlyph(Context context){super(context);}
+        @Override protected void onDraw(android.graphics.Canvas canvas){super.onDraw(canvas);float cx=getWidth()/2f,cy=getHeight()/2f,half=dp(9);paint.setColor(0xff263b59);paint.setStrokeWidth(dp(1.8f));paint.setStrokeCap(android.graphics.Paint.Cap.ROUND);for(int i=0;i<3;i++){float y=cy+(i-1)*dp(6);canvas.drawLine(cx-half,y,cx+half,y,paint);paint.setStyle(android.graphics.Paint.Style.FILL);canvas.drawCircle(cx+(i==1?dp(3):i==0?-dp(3):0),y,dp(2.5f),paint);}}
     }
     private void addSettingRow(LinearLayout panel,String title,String subtitle,CheckBox check){
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(13),dp(10),dp(10),dp(10));row.setBackground(shape(PANEL));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);panel.addView(row,rp);
@@ -100,7 +105,7 @@ public class MainActivity extends Activity {
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==902&&grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED)toast("Storage access granted.");}
     private boolean hasNetwork(){return NetworkAccess.isAllowed(this);}
     private JSONObject request(String method,String path,JSONObject body,String bearer)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(API+path).openConnection();if(c instanceof HttpsURLConnection)try{LegacyTlsCompat.configure(this,(HttpsURLConnection)c);}catch(Exception ignored){}c.setRequestMethod(method);c.setUseCaches(false);c.setRequestProperty("Cache-Control","no-cache, no-store");c.setConnectTimeout(15000);c.setReadTimeout(20000);c.setRequestProperty("Accept","application/json");if(bearer!=null)c.setRequestProperty("Authorization","Bearer "+bearer);if(body!=null){c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status>=200&&status<300?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();if(in!=null){try(InputStream x=in){byte[] b=new byte[8192];int n;while((n=x.read(b))!=-1)out.write(b,0,n);}}c.disconnect();String raw=out.toString("UTF-8");JSONObject result=raw.isEmpty()?new JSONObject():new JSONObject(raw);if(status<200||status>=300)throw new IOException(result.optString("error","HTTP "+status));return result;}
-    private void loadCatalog(){if(token==null||catalogBusy)return;if(!hasNetwork()){String cache=prefs().getString("cached_catalog_json",null);if(cache!=null)try{showCatalog(new JSONArray(cache),true);return;}catch(Exception ignored){}message("Connect to Wi-Fi or enable mobile data in Settings.");return;}catalogBusy=true;message("Loading apps…");new Thread(()->{try{JSONObject result=request("GET","/api/catalog",null,token);JSONArray apps=result.optJSONArray("apps");if(apps==null)throw new IOException("Invalid catalog response");prefs().edit().putString("cached_catalog_json",apps.toString()).apply();runOnUiThread(()->{catalogBusy=false;showCatalog(apps,false);});}catch(Exception e){runOnUiThread(()->{catalogBusy=false;String cache=prefs().getString("cached_catalog_json",null);try{if(cache!=null){showCatalog(new JSONArray(cache),true);message("Server unavailable — showing saved catalog.");}else message("Could not load catalog: "+e.getMessage());}catch(Exception x){message("Could not load catalog.");}});}}).start();}
+    private void loadCatalog(){if(token==null||catalogBusy)return;if(!hasNetwork()){String cache=prefs().getString("cached_catalog_json",null);if(cache!=null)try{showCatalog(new JSONArray(cache),true);return;}catch(Exception ignored){}message("Connect to Wi-Fi or enable mobile data in Settings.");return;}catalogBusy=true;message("Loading apps…");new Thread(()->{try{JSONObject result=request("GET","/api/catalog",null,token);JSONArray apps=result.optJSONArray("apps");if(apps==null)throw new IOException("Invalid catalog response");prefs().edit().putString("cached_catalog_json",apps.toString()).apply();runOnUiThread(()->{catalogBusy=false;showCatalog(apps,false);});}catch(Exception e){runOnUiThread(()->{catalogBusy=false;String cache=prefs().getString("cached_catalog_json",null);try{if(cache!=null){showCatalog(new JSONArray(cache),true);message("Server unavailable — showing saved catalog.");}else message("Can't connect to server.");}catch(Exception x){message("Could not load catalog.");}});}}).start();}
     private void message(String s){if(content==null)return;TextView t=text(s,14,MUTED,false);content.addView(t);}
     private void showCatalog(JSONArray apps,boolean cached){
         catalogApps=apps;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;
@@ -109,10 +114,10 @@ public class MainActivity extends Activity {
         LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),dp(4),dp(4),dp(7));
         int visibleCount=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
         for(int i=0;i<apps.length();i++){JSONObject a=apps.optJSONObject(i);if(a==null)continue;String p=a.optString("packageName","");if(!isInstalled(p)||showInstalled)visibleCount++;}
-        TextView count=text("AVAILABLE APPLICATIONS",11,MUTED,true);bar.addView(count,new LinearLayout.LayoutParams(0,-2,1));
+        TextView count=text("APPLICATIONS",11,MUTED,true);bar.addView(count,new LinearLayout.LayoutParams(0,-2,1));
         TextView total=text(String.valueOf(visibleCount),11,BLUE,true);total.setGravity(Gravity.CENTER);total.setBackground(fillShape(BLUE_TINT));bar.addView(total,new LinearLayout.LayoutParams(dp(30),dp(26)));
         TextView refresh=text("↻",21,BLUE,true);refresh.setGravity(Gravity.CENTER);refresh.setContentDescription("Refresh catalog");refresh.setFocusable(true);refresh.setBackground(focusBackground());refresh.setOnClickListener(v->refreshCatalog());LinearLayout.LayoutParams refreshLp=new LinearLayout.LayoutParams(dp(40),dp(36));refreshLp.leftMargin=dp(5);bar.addView(refresh,refreshLp);content.addView(bar);
-        catalogList=new GridLayout(this);catalogList.setOrientation(GridLayout.VERTICAL);catalogList.setColumnCount(1);catalogList.setAlignmentMode(GridLayout.ALIGN_BOUNDS);catalogList.setUseDefaultMargins(false);
+        catalogList=new LinearLayout(this);catalogList.setOrientation(LinearLayout.VERTICAL);catalogList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         LinearLayout.LayoutParams listLp=new LinearLayout.LayoutParams(-1,-1);content.addView(catalogList,listLp);
         int shown=0;
         for(int i=0;i<apps.length();i++){
@@ -120,11 +125,9 @@ public class MainActivity extends Activity {
             String pkg=a.optString("packageName","");boolean installed=isInstalled(pkg);
             if(installed&&!showInstalled)continue;
             shown++;String name=a.optString("name","App"),version=a.optString("version",""),description=a.optString("description","");
-            GridLayout.LayoutParams cell=new GridLayout.LayoutParams(GridLayout.spec(shown-1),GridLayout.spec(0));
-            cell.width=-1;cell.height=-2;cell.setMargins(0,0,0,dp(1));
-            LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setOrientation(LinearLayout.HORIZONTAL);row.setPadding(dp(10),dp(9),dp(10),dp(9));row.setMinimumHeight(dp(76));row.setBackground(focusBackground());row.setFocusable(true);row.setClickable(true);row.setContentDescription(name+(installed?", installed":", available"));
+            LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setOrientation(LinearLayout.HORIZONTAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setMinimumHeight(dp(72));row.setBackground(focusBackground());row.setFocusable(true);row.setClickable(true);row.setContentDescription(name+(installed?", installed":", available"));
             ImageView icon=new ImageView(this);icon.setImageResource(android.R.drawable.sym_def_app_icon);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(48),dp(48));iconLp.rightMargin=dp(12);row.addView(icon,iconLp);
+            LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(46),dp(46));iconLp.rightMargin=dp(12);row.addView(icon,iconLp);
             loadCatalogIcon(icon,a.optString("iconUrl",""),a.optString("apkUrl",""),pkg,version);
             LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.setGravity(Gravity.CENTER_VERTICAL);
             TextView appName=text(name,14,INK,true);appName.setMaxLines(1);appName.setEllipsize(android.text.TextUtils.TruncateAt.END);copy.addView(appName,new LinearLayout.LayoutParams(-1,-2));
@@ -132,10 +135,10 @@ public class MainActivity extends Activity {
             TextView state=text(installed?"Installed":"Available",10,installed?GREEN:BLUE,true);LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(4);copy.addView(state,stateLp);
             row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
             TextView arrow=text("›",25,MUTED,false);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(22),dp(38)));
-            row.setOnClickListener(v->showAppPage(a));catalogList.addView(row,cell);
-            View divider=new View(this);divider.setBackgroundColor(EDGE);GridLayout.LayoutParams dividerLp=new GridLayout.LayoutParams(GridLayout.spec(shown),GridLayout.spec(0));dividerLp.width=-1;dividerLp.height=dp(1);catalogList.addView(divider,dividerLp);
+            row.setOnClickListener(v->showAppPage(a));catalogList.addView(row,new LinearLayout.LayoutParams(-1,-2));
+            View divider=new View(this);divider.setBackgroundColor(EDGE);catalogList.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
         }
-        if(shown==0){TextView empty=text("No apps are currently available.",14,MUTED,false);empty.setGravity(Gravity.CENTER);content.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
+        if(shown==0){TextView empty=text("No apps are currently listed.",14,MUTED,false);empty.setGravity(Gravity.CENTER);catalogList.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
         focusFirst();
     }
     private void showAppPage(JSONObject app){
