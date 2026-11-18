@@ -38,7 +38,7 @@ public final class ActivationNotification {
 
     private static android.graphics.Bitmap loadStoreIcon(Context context) {
         try {
-            android.graphics.drawable.Drawable drawable = context.getDrawable(R.drawable.ic_yw_app);
+            android.graphics.drawable.Drawable drawable = context.getDrawable(R.drawable.ic_yw_app_exact);
             int size = (int)(context.getResources().getDisplayMetrics().density * 64 + 0.5f);
             android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888);
             android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
