@@ -34,8 +34,8 @@ public class AccountSyncAdapterService extends Service {
                 String key = "initial_sync_requested_" + account.name;
                 android.content.SharedPreferences state = appContext.getSharedPreferences("yw_store", Context.MODE_PRIVATE);
                 if (!state.getBoolean(key, false)) {
-                    state.edit().putBoolean(key, true).apply();
                     ContentResolver.requestSync(account, YwAccountAuthenticator.AUTHORITY, new Bundle());
+                    state.edit().putBoolean(key, true).apply();
                     Log.i(TAG, "Requested initial account sync for " + account.name + ".");
                 }
                 Log.i(TAG, "Automatic account sync is enabled for " + account.name + ".");
@@ -51,7 +51,7 @@ public class AccountSyncAdapterService extends Service {
                         appContext.getSystemService(Context.NOTIFICATION_SERVICE);
                 Log.i(TAG, "Account sync callback received for " + account.name + ".");
                 if (isMainActivityForeground(appContext)) {
-                    if (manager != null) manager.cancel(2301);
+                    ActivationNotification.cancel(appContext);
                     Log.i(TAG, "Main screen is active; activation notification suppressed.");
                     return;
                 }
