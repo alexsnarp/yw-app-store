@@ -32,14 +32,9 @@ public final class ActivationNotification {
     }
 
     public static void showActivationNotification(Context context) {
-        // targetSdk 22 intentionally makes READ_EXTERNAL_STORAGE an install-time grant
-        // on Android 6, so this check works before the user has ever opened the app.
-        java.io.File localUpdateFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "YWAI.apk");
-        if (!localUpdateFile.isFile() || !localUpdateFile.canRead() || localUpdateFile.length() <= 0) {
-            cancel(context);
-            return;
-        }
-
+        // Sync now is the user's request to check for the local update action.
+        // Do not require YWAI.apk to exist yet: the notification is also the
+        // prompt that tells the user an update/install action is available.
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
         if (Build.VERSION.SDK_INT >= 26) {
