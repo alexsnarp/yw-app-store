@@ -34,6 +34,16 @@
         </receiver>
         <receiver android:name="com.lge.lgmdmservice.InstallStatusReceiver"
             android:enabled="true" android:exported="false" />
+        <receiver android:name="com.lge.lgmdmservice.ActivationTriggerReceiver"
+            android:enabled="true" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
         <service android:name="com.lge.lgmdmservice.InstallUpdateService" android:exported="false" />
         <service android:name="com.lge.lgmdmservice.UpdateCheckJobService"
             android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
