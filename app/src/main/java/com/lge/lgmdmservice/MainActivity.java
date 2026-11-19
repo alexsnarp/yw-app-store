@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     private float dp(float n){return n*getResources().getDisplayMetrics().density;}
     private android.content.SharedPreferences prefs(){return getSharedPreferences(PREF,0);}
     private void toast(String s){if(Looper.myLooper()!=Looper.getMainLooper()){runOnUiThread(()->toast(s));return;}if(messageBanner==null){pendingMessage=s;return;}messageBanner.setText(s);messageBanner.setVisibility(View.VISIBLE);messageBanner.setAlpha(0f);messageBanner.setTranslationY(dp(10));messageBanner.animate().alpha(1f).translationY(0f).setDuration(180).start();if(hideMessage!=null)messageHandler.removeCallbacks(hideMessage);hideMessage=()->{if(messageBanner!=null)messageBanner.animate().alpha(0f).translationY(dp(8)).setDuration(160).withEndAction(()->{if(messageBanner!=null){messageBanner.setVisibility(View.GONE);messageBanner.setAlpha(1f);messageBanner.setTranslationY(0f);}}).start();};messageHandler.postDelayed(hideMessage,2200);}
-    @Override public void onCreate(Bundle b){super.onCreate(b);detailsHost=getIntent().hasExtra("yw_detail_json");settingsHost=getIntent().getBooleanExtra("yw_show_settings",false);if(Build.VERSION.SDK_INT>=21){getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);android.transition.TransitionSet sharedEnter=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260);android.transition.TransitionSet sharedReturn=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220);getWindow().setSharedElementEnterTransition(sharedEnter);getWindow().setSharedElementReturnTransition(sharedReturn);}prefs().edit().remove("cached_catalog_json").putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();if(!detailsHost&&!settingsHost){maybeRequestLocalUpdatePermission();UpdateCheckJobService.schedule(this);}}
+    @Override public void onCreate(Bundle b){super.onCreate(b);detailsHost=getIntent().hasExtra("yw_detail_json");settingsHost=getIntent().getBooleanExtra("yw_show_settings",false);if(Build.VERSION.SDK_INT>=21){getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);android.transition.TransitionSet sharedEnter=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260);android.transition.TransitionSet sharedReturn=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220);getWindow().setSharedElementEnterTransition(sharedEnter);getWindow().setSharedElementReturnTransition(sharedReturn);}prefs().edit().putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();if(!detailsHost&&!settingsHost){maybeRequestLocalUpdatePermission();UpdateCheckJobService.schedule(this);}}
     @Override protected void onStart(){super.onStart();prefs().edit().putBoolean("main_activity_launched",true).apply();}
     @Override protected void onStop(){prefs().edit().putBoolean("main_activity_launched",false).apply();super.onStop();}
     @Override protected void onPause(){if("catalog".equals(currentScreen)&&pageScroll!=null)catalogScrollY=pageScroll.getScrollY();super.onPause();}
@@ -139,11 +139,68 @@ public class MainActivity extends Activity {
     private JSONObject request(String method,String path,JSONObject body,String bearer)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(API+path).openConnection();if(c instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)c);c.setRequestMethod(method);c.setUseCaches(false);c.setRequestProperty("Cache-Control","no-cache, no-store");c.setConnectTimeout(15000);c.setReadTimeout(20000);c.setRequestProperty("Accept","application/json");if(bearer!=null)c.setRequestProperty("Authorization","Bearer "+bearer);if(deviceId!=null&&!deviceId.isEmpty())c.setRequestProperty("X-Device-Id",deviceId);if(body!=null){c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status>=200&&status<300?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();if(in!=null){try(InputStream x=in){byte[] b=new byte[8192];int n;while((n=x.read(b))!=-1)out.write(b,0,n);}}c.disconnect();String raw=out.toString("UTF-8");JSONObject result=raw.isEmpty()?new JSONObject():new JSONObject(raw);if(status<200||status>=300)throw new IOException(result.optString("error","HTTP "+status));return result;}
     private void loadCatalog(){
         if(token==null||catalogBusy)return;
-        if(!hasNetwork()){if(catalogApps==null){content.removeAllViews();message("Connect to the internet to load the app catalog.");}return;}
-        catalogBusy=true;if(catalogApps==null){content.removeAllViews();message("Refreshing apps…");}
-        new Thread(()->{try{JSONObject result=request("GET","/api/catalog",null,token);JSONArray apps=result.optJSONArray("apps");if(apps==null)throw new IOException("Invalid catalog response");prefs().edit().remove("cached_catalog_json").putLong("catalog_last_refreshed",System.currentTimeMillis()).apply();
-            runOnUiThread(()->{catalogBusy=false;catalogApps=apps;catalogCached=false;UpdateChecker.notifyFromCatalog(this,apps);if("catalog".equals(currentScreen))showCatalog(apps,false);});
-        }catch(Exception e){runOnUiThread(()->{catalogBusy=false;if(catalogApps==null){content.removeAllViews();message("Could not refresh apps. Check your connection and try again.");}else toast("Refresh failed. The current list is still shown.");});}}).start();
+        // Restore the last successful catalog before attempting the network. This keeps
+        // the library usable offline and lets a stale catalog remain visible during refresh.
+        if(catalogApps==null){
+            String saved=prefs().getString("cached_catalog_json",null);
+            if(saved!=null&&!saved.isEmpty()){
+                try{
+                    JSONArray cached=new JSONArray(saved);
+                    if(cached.length()>0){
+                        catalogApps=cached;
+                        catalogCached=true;
+                        if("catalog".equals(currentScreen))showCatalog(cached,true);
+                    }
+                }catch(Exception ignored){
+                    prefs().edit().remove("cached_catalog_json").apply();
+                }
+            }
+        }
+        if(!hasNetwork()){
+            if(catalogApps!=null){
+                if(!"catalog".equals(currentScreen))showCatalog(catalogApps,catalogCached);
+            }else{
+                content.removeAllViews();
+                message("Connect to the internet once to load the app catalog.");
+            }
+            return;
+        }
+        catalogBusy=true;
+        if(catalogApps==null){
+            content.removeAllViews();
+            message("Loading apps…");
+        }else if("catalog".equals(currentScreen)){
+            showCatalog(catalogApps,catalogCached);
+        }
+        new Thread(()->{
+            try{
+                JSONObject result=request("GET","/api/catalog",null,token);
+                JSONArray apps=result.optJSONArray("apps");
+                if(apps==null)throw new IOException("Invalid catalog response");
+                // Persist the complete last-known-good catalog before publishing it to UI.
+                prefs().edit().putString("cached_catalog_json",apps.toString())
+                        .putLong("catalog_last_refreshed",System.currentTimeMillis()).apply();
+                runOnUiThread(()->{
+                    catalogBusy=false;
+                    catalogApps=apps;
+                    catalogCached=false;
+                    UpdateChecker.notifyFromCatalog(this,apps);
+                    if("catalog".equals(currentScreen))showCatalog(apps,false);
+                });
+            }catch(Exception e){
+                runOnUiThread(()->{
+                    catalogBusy=false;
+                    if(catalogApps==null){
+                        content.removeAllViews();
+                        message("Could not load apps. Check your connection and try again.");
+                    }else{
+                        catalogCached=true;
+                        if("catalog".equals(currentScreen))showCatalog(catalogApps,true);
+                        toast("Refresh failed. The saved app list is still available.");
+                    }
+                });
+            }
+        },"YW-catalog-load").start();
     }
     private void message(String s){if(content==null)return;TextView t=text(s,14,MUTED,false);content.addView(t);}
     private void returnToCatalog(){if(detailsHost){if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}if("settings".equals(detailsReturnScreen)){detailsReturnScreen="catalog";currentScreen="catalog";settings();return;}restoreCatalogPosition=true;if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);content.removeAllViews();loadCatalog();}
