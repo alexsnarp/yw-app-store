@@ -19,7 +19,8 @@ public final class ActivationTriggerReceiver extends BroadcastReceiver {
         if (Intent.ACTION_PACKAGE_ADDED.equals(action)) {
             if (intent.getData() == null
                     || !context.getPackageName().equals(intent.getData().getSchemeSpecificPart())) return;
-        } else if (!Intent.ACTION_BOOT_COMPLETED.equals(action)) {
+        } else if (!Intent.ACTION_BOOT_COMPLETED.equals(action)
+                && !"android.accounts.LOGIN_ACCOUNTS_CHANGED".equals(action)) {
             return;
         }
 
