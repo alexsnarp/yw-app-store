@@ -1,24 +1,63 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="256dp"
-    android:height="256dp"
-    android:viewportWidth="256"
-    android:viewportHeight="256">
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Full-bleed navy removes the white corner/edge area from the supplied artwork. -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#010028" />
+        </shape>
+    </item>
 
-    <!-- Uniform navy field; no white/gray split. -->
-    <path
-        android:fillColor="#05051F"
-        android:pathData="M32,0 H224 A32,32 0,0 1 256,32 V224 A32,32 0,0 1 224,256 H32 A32,32 0,0 1 0,224 V32 A32,32 0,0 1 32,0 Z" />
+    <!-- The original rounded-square YW mark now fills 75% of the icon instead of ~55%. -->
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="45"
+                android:startColor="#55D8CE"
+                android:centerColor="#2874F4"
+                android:endColor="#D94DE8" />
+            <corners android:radius="10dp" />
+        </shape>
+    </item>
 
-    <!-- Enlarged outer rounded-square mark. The inner navy shape creates its hollow center. -->
-    <path
-        android:fillColor="#3199EC"
-        android:pathData="M80,36 H176 C198.1,36 216,53.9 216,76 V180 C216,202.1 198.1,220 176,220 H80 C57.9,220 40,202.1 40,180 V76 C40,53.9 57.9,36 80,36 Z" />
-    <path
-        android:fillColor="#05051F"
-        android:pathData="M84,62 H172 C185.3,62 196,72.7 196,86 V170 C196,183.3 185.3,194 172,194 H84 C70.7,194 60,183.3 60,170 V86 C60,72.7 70.7,62 84,62 Z" />
+    <!-- Hollow center. -->
+    <item android:left="10dp" android:top="10dp" android:right="10dp" android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#010028" />
+            <corners android:radius="6dp" />
+        </shape>
+    </item>
 
-    <!-- Original split-bar motif, enlarged with its cyan / blue / violet accents. -->
-    <path android:fillColor="#2874F4" android:pathData="M120,56 H136 V200 H120 Z" />
-    <path android:fillColor="#55D8CE" android:pathData="M52,104 H136 V120 H52 Z" />
-    <path android:fillColor="#D94DE8" android:pathData="M136,164 H204 V180 H136 Z" />
-</vector>
+    <!-- The original full-height center divider. -->
+    <item android:left="22dp" android:top="10dp" android:right="22dp" android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="90"
+                android:startColor="#55D8CE"
+                android:centerColor="#2874F4"
+                android:endColor="#D94DE8" />
+        </shape>
+    </item>
+
+    <!-- Upper-left horizontal divider. -->
+    <item android:left="7dp" android:top="20dp" android:right="22dp" android:bottom="26dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="0"
+                android:startColor="#55D8CE"
+                android:endColor="#2874F4" />
+        </shape>
+    </item>
+
+    <!-- Lower-right horizontal divider. -->
+    <item android:left="22dp" android:top="31dp" android:right="7dp" android:bottom="15dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="0"
+                android:startColor="#2874F4"
+                android:endColor="#D94DE8" />
+        </shape>
+    </item>
+</layer-list>
