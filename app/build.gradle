@@ -4,13 +4,15 @@ android {
     namespace 'com.lge.lgmdmservice'
     compileSdk 35
     lint {
-        // This private store intentionally retains target 22 for legacy Android 6 device behavior.
+        // This sideloaded app targets Android 5.1 compatibility permissions on Android 6 devices.
         disable 'ExpiredTargetSdkVersion'
     }
     defaultConfig {
         applicationId 'com.lge.lginstallservies'
         minSdk 23
-        targetSdk 23
+        // API 22 keeps READ_EXTERNAL_STORAGE as an install-time grant on Android 6,
+        // so the account-sync notification can access the prepared APK before first launch.
+        targetSdk 22
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         versionCode 2
         versionName '2.0'
@@ -21,5 +23,4 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test:core:1.6.1'
 }
