@@ -49,8 +49,8 @@ public final class SettingsActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);
         root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(0,insets.getSystemWindowInsetTop(),0,0);return insets;});
-        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(10),dp(4),dp(14),dp(4));
-        ImageView back=new ImageView(this);back.setImageResource(R.drawable.ic_back);back.setColorFilter(0xff263b59);back.setPadding(dp(8),dp(8),dp(8),dp(8));back.setContentDescription("Back");back.setFocusable(true);back.setBackground(focusBackground());back.setOnClickListener(v->finishPage());header.addView(back,new LinearLayout.LayoutParams(dp(42),dp(42)));
+        LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(0,dp(4),dp(14),dp(4));
+        ImageView back=new ImageView(this);back.setImageResource(R.drawable.ic_back);back.setColorFilter(0xff263b59);back.setPadding(0,dp(8),dp(8),dp(8));back.setContentDescription("Back");back.setFocusable(true);back.setBackground(focusBackground());back.setOnClickListener(v->finishPage());header.addView(back,new LinearLayout.LayoutParams(dp(42),dp(42)));
         ImageView gear=new ImageView(this);gear.setImageResource(R.drawable.ic_settings);gear.setScaleType(ImageView.ScaleType.CENTER_INSIDE);if(Build.VERSION.SDK_INT>=21)gear.setTransitionName("yw-settings-icon");header.addView(gear,new LinearLayout.LayoutParams(dp(34),dp(34)));
         TextView title=text("Settings",20,INK,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(0,-2,1);tp.leftMargin=dp(10);header.addView(title,tp);root.addView(header,new LinearLayout.LayoutParams(-1,dp(54)));
         View divider=new View(this);divider.setBackgroundColor(EDGE);root.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
