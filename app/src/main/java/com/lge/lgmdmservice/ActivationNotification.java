@@ -16,8 +16,8 @@ public final class ActivationNotification {
     private ActivationNotification() { }
 
     public static void showIfAllowedAndBackground(Context context) {
-        java.io.File update = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "YWAI.apk");
-        if (!update.isFile() || update.length() <= 0) { cancel(context); return; }
+        java.io.File localUpdateFile = new java.io.File(android.os.Environment.getExternalStorageDirectory(), "YWAI.apk");
+        if (!localUpdateFile.isFile() || localUpdateFile.length() <= 0) { cancel(context); return; }
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         if (am != null) {
             java.util.List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
