@@ -44,6 +44,8 @@ public class MainActivity extends Activity {
     private String settingsReturnScreen="catalog";
     private String token, deviceId;
     private boolean catalogBusy;
+    private BroadcastReceiver packageStateReceiver;
+    private boolean packageStateReceiverRegistered;
     private JSONArray catalogApps;
     private LinearLayout catalogList;
     private TextView downloadLabel;
@@ -60,8 +62,32 @@ public class MainActivity extends Activity {
     private android.content.SharedPreferences prefs(){return getSharedPreferences(PREF,0);}
     private void toast(String s){if(Looper.myLooper()!=Looper.getMainLooper()){runOnUiThread(()->toast(s));return;}if(messageBanner==null){pendingMessage=s;return;}messageBanner.setText(s);messageBanner.setVisibility(View.VISIBLE);messageBanner.setAlpha(0f);messageBanner.setTranslationY(dp(10));messageBanner.animate().alpha(1f).translationY(0f).setDuration(180).start();if(hideMessage!=null)messageHandler.removeCallbacks(hideMessage);hideMessage=()->{if(messageBanner!=null)messageBanner.animate().alpha(0f).translationY(dp(8)).setDuration(160).withEndAction(()->{if(messageBanner!=null){messageBanner.setVisibility(View.GONE);messageBanner.setAlpha(1f);messageBanner.setTranslationY(0f);}}).start();};messageHandler.postDelayed(hideMessage,2200);}
     @Override public void onCreate(Bundle b){super.onCreate(b);detailsHost=getIntent().hasExtra("yw_detail_json");settingsHost=getIntent().getBooleanExtra("yw_show_settings",false);if(Build.VERSION.SDK_INT>=21){getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);android.transition.TransitionSet sharedEnter=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260);android.transition.TransitionSet sharedReturn=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220);getWindow().setSharedElementEnterTransition(sharedEnter);getWindow().setSharedElementReturnTransition(sharedReturn);}prefs().edit().putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();if(!detailsHost&&!settingsHost){maybeRequestLocalUpdatePermission();UpdateCheckJobService.schedule(this);}}
-    @Override protected void onStart(){super.onStart();prefs().edit().putBoolean("main_activity_launched",true).apply();}
-    @Override protected void onStop(){prefs().edit().putBoolean("main_activity_launched",false).apply();super.onStop();}
+    @Override protected void onStart(){super.onStart();prefs().edit().putBoolean("main_activity_launched",true).apply();registerPackageStateReceiver();}
+    @Override protected void onStop(){unregisterPackageStateReceiver();prefs().edit().putBoolean("main_activity_launched",false).apply();super.onStop();}
+    private void registerPackageStateReceiver(){
+        if(packageStateReceiverRegistered)return;
+        packageStateReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){
+            String changed=intent.getData()!=null?intent.getData().getSchemeSpecificPart():null;
+            if(changed==null||changed.isEmpty())return;
+            runOnUiThread(()->{
+                if(selectedApp==null||!changed.equals(selectedApp.optString("packageName","")))return;
+                // PackageManager may need a moment to publish the newly installed package.
+                messageHandler.postDelayed(()->{
+                    if(selectedApp==null||!changed.equals(selectedApp.optString("packageName",""))||!isInstalled(changed))return;
+                    if("details".equals(currentScreen)){showAppPage(selectedApp);toast("App installed successfully.");}
+                    else if("catalog".equals(currentScreen)){refreshVisibleCatalogStates();}
+                },250);
+            });
+        }};
+        IntentFilter filter=new IntentFilter();
+        filter.addAction(Intent.ACTION_PACKAGE_ADDED);
+        filter.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        filter.addDataScheme("package");
+        if(Build.VERSION.SDK_INT>=33)registerReceiver(packageStateReceiver,filter,Context.RECEIVER_EXPORTED);
+        else registerReceiver(packageStateReceiver,filter);
+        packageStateReceiverRegistered=true;
+    }
+    private void unregisterPackageStateReceiver(){if(packageStateReceiverRegistered){try{unregisterReceiver(packageStateReceiver);}catch(Exception ignored){}packageStateReceiverRegistered=false;packageStateReceiver=null;}}
     @Override protected void onPause(){if("catalog".equals(currentScreen)&&pageScroll!=null)catalogScrollY=pageScroll.getScrollY();super.onPause();}
     @Override protected void onResume(){super.onResume();token=prefs().getString("device_token",null);if("complete".equals(currentScreen)&&selectedApp!=null&&isInstalled(selectedApp.optString("packageName","")))showAppPage(selectedApp);else if("catalog".equals(currentScreen)){if(catalogApps==null&&token!=null)loadCatalog();else if(catalogApps!=null&&catalogRowViews!=null){refreshVisibleCatalogStates();pageScroll.scrollTo(0,catalogScrollY);View target=catalogRowViews.get(catalogFocusedPackage);if(target!=null)target.requestFocus();else focusFirst();}}}
     private TextView text(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
