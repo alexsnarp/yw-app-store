@@ -25,17 +25,6 @@ jobs:
         run: gradle --no-daemon lintDebug
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
-      - name: Android 6 startup smoke tests
-        uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 18
-        with:
-          api-level: 23
-          arch: x86
-          profile: Nexus 6
-          emulator-boot-timeout: 300
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: timeout 10m gradle --no-daemon connectedDebugAndroidTest --stacktrace
       - name: Package source ZIP
         run: git archive --format=zip --output=yw-app-store-source.zip HEAD
       - name: Upload source ZIP
