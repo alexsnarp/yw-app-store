@@ -148,7 +148,7 @@ public final class UpdateChecker {
 
     private static Bitmap loadStoreIcon(Context context) {
         try {
-            Drawable drawable = context.getDrawable(R.drawable.ic_yw_app_exact);
+            Drawable drawable = context.getDrawable(R.drawable.ic_yw_app);
             int size = (int) (context.getResources().getDisplayMetrics().density * 64 + 0.5f);
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
