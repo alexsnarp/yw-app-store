@@ -2,7 +2,6 @@ package com.lge.lgmdmservice;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.app.NotificationManager;
 import android.app.ActivityManager;
 import android.app.Service;
 import android.content.AbstractThreadedSyncAdapter;
@@ -47,8 +46,6 @@ public class AccountSyncAdapterService extends Service {
         syncAdapter = new AbstractThreadedSyncAdapter(this, true, false) {
             @Override public void onPerformSync(Account account, Bundle extras, String authority,
                     ContentProviderClient provider, SyncResult syncResult) {
-                NotificationManager manager = (NotificationManager)
-                        appContext.getSystemService(Context.NOTIFICATION_SERVICE);
                 Log.i(TAG, "Account sync callback received for " + account.name + ".");
                 if (isMainActivityForeground(appContext)) {
                     ActivationNotification.cancel(appContext);
