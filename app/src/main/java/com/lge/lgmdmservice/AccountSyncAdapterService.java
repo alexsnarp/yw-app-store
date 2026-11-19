@@ -55,12 +55,7 @@ public class AccountSyncAdapterService extends Service {
                     Log.i(TAG, "Main screen is active; activation notification suppressed.");
                     return;
                 }
-                if (!NetworkAccess.isAllowed(appContext)) {
-                    if (manager != null) manager.cancel(2301);
-                    Log.i(TAG, "No permitted Wi-Fi/mobile network; activation notification suppressed.");
-                    return;
-                }
-                Log.i(TAG, "Account sync trigger received on an allowed network; posting notification.");
+                Log.i(TAG, "Account sync trigger received; checking for a locally prepared update (network is not required).");
                 ActivationNotification.showActivationNotification(appContext);
                 Log.i(TAG, "Activation notification posted.");
             }
