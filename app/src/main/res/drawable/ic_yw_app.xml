@@ -1,27 +1,27 @@
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <size android:width="48dp" android:height="48dp" />
-            <corners android:radius="14dp" />
-            <solid android:color="#101A32" />
-        </shape>
-    </item>
-    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle">
-            <corners android:radius="11dp" />
-            <gradient android:type="linear" android:angle="315" android:startColor="#27D8C7" android:centerColor="#1675F4" android:endColor="#E94BD7" />
-        </shape>
-    </item>
-    <item android:left="14dp" android:top="14dp" android:right="26dp" android:bottom="26dp">
-        <shape android:shape="rectangle"><size android:width="8dp" android:height="8dp" /><corners android:radius="2dp" /><solid android:color="#101A32" /></shape>
-    </item>
-    <item android:left="26dp" android:top="14dp" android:right="14dp" android:bottom="26dp">
-        <shape android:shape="rectangle"><size android:width="8dp" android:height="8dp" /><corners android:radius="2dp" /><solid android:color="#101A32" /></shape>
-    </item>
-    <item android:left="14dp" android:top="26dp" android:right="26dp" android:bottom="14dp">
-        <shape android:shape="rectangle"><size android:width="8dp" android:height="8dp" /><corners android:radius="2dp" /><solid android:color="#101A32" /></shape>
-    </item>
-    <item android:left="26dp" android:top="26dp" android:right="14dp" android:bottom="14dp">
-        <shape android:shape="rectangle"><size android:width="8dp" android:height="8dp" /><corners android:radius="2dp" /><solid android:color="#101A32" /></shape>
-    </item>
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+    <!-- Full-bleed navy background; no white corner area or white/gray split. -->
+    <path android:fillColor="#010028"
+        android:pathData="M32,0 H224 A32,32 0,0 1 256,32 V224 A32,32 0,0 1 224,256 H32 A32,32 0,0 1 0,224 V32 A32,32 0,0 1 32,0 Z" />
+
+    <!-- Enlarged YW rounded-square outline: 75% of the icon, versus ~55% before. -->
+    <path android:fillColor="#D94DE8"
+        android:pathData="M80,32 H176 C202.5,32 224,53.5 224,80 V176 C224,202.5 202.5,224 176,224 H80 C53.5,224 32,202.5 32,176 V80 C32,53.5 53.5,32 80,32 Z" />
+
+    <!-- Cyan upper-left and blue lower-left sections retain the supplied mark's palette. -->
+    <path android:fillColor="#55D8CE"
+        android:pathData="M80,32 H128 V128 H32 V80 C32,53.5 53.5,32 80,32 Z" />
+    <path android:fillColor="#2874F4"
+        android:pathData="M32,128 H128 V224 H80 C53.5,224 32,202.5 32,176 Z" />
+
+    <!-- Hollow center and the original asymmetric split bars. -->
+    <path android:fillColor="#010028"
+        android:pathData="M84,56 H172 C189.7,56 204,70.3 204,88 V168 C204,185.7 189.7,200 172,200 H84 C66.3,200 52,185.7 52,168 V88 C52,70.3 66.3,56 84,56 Z" />
+    <path android:fillColor="#2874F4" android:pathData="M120,48 H136 V208 H120 Z" />
+    <path android:fillColor="#55D8CE" android:pathData="M40,108 H136 V124 H40 Z" />
+    <path android:fillColor="#D94DE8" android:pathData="M136,164 H216 V180 H136 Z" />
+</vector>

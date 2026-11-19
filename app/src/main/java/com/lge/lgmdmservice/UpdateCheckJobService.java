@@ -20,7 +20,6 @@ public class UpdateCheckJobService extends JobService {
         JobInfo job = new JobInfo.Builder(JOB_ID, new ComponentName(context, UpdateCheckJobService.class))
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                 .setPeriodic(12L * 60L * 60L * 1000L)
-                .setPersisted(true)
                 .build();
         scheduler.schedule(job);
     }

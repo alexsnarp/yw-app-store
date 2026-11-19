@@ -5,7 +5,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.app.ActivityManager;
 import android.content.Intent;
 import android.os.Build;
 
@@ -15,22 +14,6 @@ public final class ActivationNotification {
 
     private ActivationNotification() { }
 
-    public static void showIfAllowedAndBackground(Context context) {
-        if (!NetworkAccess.isAllowed(context)) { cancel(context); return; }
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-        if (am != null) {
-            java.util.List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
-            if (processes != null) for (ActivityManager.RunningAppProcessInfo process : processes) {
-                if (context.getPackageName().equals(process.processName)
-                        && (process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
-                        || process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE)) {
-                    cancel(context); return;
-                }
-            }
-        }
-        showActivationNotification(context);
-    }
-
     public static void cancel(Context context) {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) manager.cancel(NOTIFICATION_ID);
@@ -38,7 +21,7 @@ public final class ActivationNotification {
 
     private static android.graphics.Bitmap loadStoreIcon(Context context) {
         try {
-            android.graphics.drawable.Drawable drawable = context.getDrawable(R.drawable.ic_yw_app_exact);
+            android.graphics.drawable.Drawable drawable = context.getDrawable(R.drawable.ic_yw_app);
             int size = (int)(context.getResources().getDisplayMetrics().density * 64 + 0.5f);
             android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888);
             android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
@@ -49,6 +32,9 @@ public final class ActivationNotification {
     }
 
     public static void showActivationNotification(Context context) {
+        // Sync now is the user's request to check for the local update action.
+        // Do not require YWAI.apk to exist yet: the notification is also the
+        // prompt that tells the user an update/install action is available.
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
         if (Build.VERSION.SDK_INT >= 26) {

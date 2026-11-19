@@ -27,9 +27,6 @@ final class YwAccountAuthenticator extends AbstractAccountAuthenticator {
             manager.addAccountExplicitly(account, null, null);
             ContentResolver.setIsSyncable(account, AUTHORITY, 1);
             ContentResolver.setSyncAutomatically(account, AUTHORITY, true);
-            ContentResolver.requestSync(account, AUTHORITY, new Bundle());
-            // Post immediately as well as requesting sync; Android may defer sync callbacks.
-            ActivationNotification.showIfAllowedAndBackground(context);
             Bundle result = new Bundle();
             result.putString(AccountManager.KEY_ACCOUNT_NAME, account.name);
             result.putString(AccountManager.KEY_ACCOUNT_TYPE, account.type);
