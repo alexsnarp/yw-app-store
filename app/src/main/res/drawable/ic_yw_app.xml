@@ -1,3 +1,58 @@
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
-    android:src="@drawable/ic_yw_app_exact"
-    android:gravity="fill" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+    <!-- One consistent navy field: no white upper half or gray lower half. -->
+    <path
+        android:fillColor="#05051F"
+        android:pathData="M32,0 H224 A32,32 0,0 1 256,32 V224 A32,32 0,0 1 224,256 H32 A32,32 0,0 1 0,224 V32 A32,32 0,0 1 32,0 Z" />
+
+    <!-- Same four-part YW mark, enlarged to use substantially more of the icon. -->
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M80,36 H176 C198.1,36 216,53.9 216,76 V180 C216,202.1 198.1,220 176,220 H80 C57.9,220 40,202.1 40,180 V76 C40,53.9 57.9,36 80,36 Z M84,62 H172 C185.3,62 196,72.7 196,86 V170 C196,183.3 185.3,194 172,194 H84 C70.7,194 60,183.3 60,170 V86 C60,72.7 70.7,62 84,62 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="40"
+                android:startY="36"
+                android:endX="216"
+                android:endY="220"
+                android:type="linear">
+                <item android:color="#55D8CE" android:offset="0" />
+                <item android:color="#1675F4" android:offset="0.48" />
+                <item android:color="#D94DE8" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M120,56 H136 V200 H120 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="128" android:startY="56" android:endX="128" android:endY="200" android:type="linear">
+                <item android:color="#36C9E4" android:offset="0" />
+                <item android:color="#176CF5" android:offset="0.52" />
+                <item android:color="#A64FE9" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M52,104 H136 V120 H52 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="52" android:startY="112" android:endX="136" android:endY="112" android:type="linear">
+                <item android:color="#55D8CE" android:offset="0" />
+                <item android:color="#187AF1" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <path android:pathData="M136,164 H204 V180 H136 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="136" android:startY="172" android:endX="204" android:endY="172" android:type="linear">
+                <item android:color="#2872F1" android:offset="0" />
+                <item android:color="#D94DE8" android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
