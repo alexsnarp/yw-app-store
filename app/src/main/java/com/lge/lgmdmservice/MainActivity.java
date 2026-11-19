@@ -275,10 +275,12 @@ public class MainActivity extends Activity {
         downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);downloadActions.setOrientation(LinearLayout.VERTICAL);LinearLayout.LayoutParams al=new LinearLayout.LayoutParams(-1,-2);al.topMargin=dp(7);panel.addView(downloadActions,al);
         boolean hasLaunchScreen=installed&&getPackageManager().getLaunchIntentForPackage(pkg)!=null;
         if(installed){
-            if(hasLaunchScreen){Button open=actionButton("Open app",true);open.setOnClickListener(v->openApp(pkg));addActionPair(downloadActions,open,null);}
-            if(downloaded){Button installUpdate=actionButton("Install update",true);installUpdate.setOnClickListener(v->installApk(savedApk,pkg,version));Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));addActionPair(downloadActions,installUpdate,remove);}
-            else if(updateAvailable){Button update=actionButton("Download update",false);update.setOnClickListener(v->download(url,name,pkg,version,null,null));Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));addActionPair(downloadActions,update,remove);}
-            else{Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));if(hasLaunchScreen)addActionPair(downloadActions,remove,null);else addActionPair(downloadActions,remove,null);}
+            Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));
+            if(hasLaunchScreen){Button open=actionButton("Open app",true);open.setOnClickListener(v->openApp(pkg));addActionPair(downloadActions,open,remove);}
+            else if(!downloaded&&!updateAvailable){addActionPair(downloadActions,remove,null);}
+            if(downloaded){Button installUpdate=actionButton("Install update",true);installUpdate.setOnClickListener(v->installApk(savedApk,pkg,version));addActionPair(downloadActions,installUpdate,null);}
+            else if(updateAvailable){Button update=actionButton("Download update",false);update.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,update,null);}
+            if(!hasLaunchScreen&&(downloaded||updateAvailable)){addActionPair(downloadActions,remove,null);}
         }else if(downloaded){Button install=actionButton("Install",true);install.setOnClickListener(v->installApk(savedApk,pkg,version));Button remove=actionButton("Delete download",false);remove.setOnClickListener(v->deleteDownloadedApk(savedApk,pkg,version));addActionPair(downloadActions,install,remove);}
         else{Button install=actionButton("Download",true);install.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,install,null);}
         if(downloading.contains(pkg))restoreActiveDownload(pkg,version);
