@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
         mobile.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("mobile_data",checked).apply());
         installed.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_installed",checked).apply());
         descriptions.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_descriptions",checked).apply());
-        Button storeUpdate=actionButton("Update App Store",false);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(-1,dp(44));storeUpdateLp.topMargin=dp(12);content.addView(storeUpdate,storeUpdateLp);storeUpdate.setOnClickListener(v->checkStoreUpdate());
+        Button storeUpdate=actionButton("Update App Store · Beta (not active yet)",false);storeUpdate.setEnabled(false);storeUpdate.setAlpha(0.62f);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(-1,dp(44));storeUpdateLp.topMargin=dp(12);content.addView(storeUpdate,storeUpdateLp);
         Button exportLogs=actionButton("Export diagnostic log",false);LinearLayout.LayoutParams logsLp=new LinearLayout.LayoutParams(-1,dp(44));logsLp.topMargin=dp(6);content.addView(exportLogs,logsLp);exportLogs.setOnClickListener(v->exportLogcat());
         focusFirst();
     }
