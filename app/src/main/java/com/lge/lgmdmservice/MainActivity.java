@@ -25,6 +25,8 @@ import org.json.*;
 public class MainActivity extends Activity {
     private static final String PREF="yw_store";
     private static final String API="https://yw-app-store-api.yw-app-installer-store-2026.workers.dev";
+    private static final String STORE_UPDATE_MANIFEST_URL="https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/latest.json";
+    private static final String STORE_UPDATE_APK_URL="https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/yw-app-store.apk";
     private static final int BG=0xfff5f7fb, PANEL=0xffffffff, EDGE=0xffe1e7f0, BLUE=0xff1769e0, BLUE_DARK=0xff123f86, BLUE_TINT=0xffedf4ff, INK=0xff152238, MUTED=0xff637187, GREEN=0xff087c58, GOLD=0xffffb300;
     private static final Set<String> downloading=Collections.synchronizedSet(new HashSet<String>());
     private static final Set<String> cancelled=Collections.synchronizedSet(new HashSet<String>());
@@ -149,11 +151,24 @@ public class MainActivity extends Activity {
         mobile.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("mobile_data",checked).apply());
         installed.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_installed",checked).apply());
         descriptions.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_descriptions",checked).apply());
-        Button storeUpdate=actionButton("Update App Store · Beta (not active yet)",false);storeUpdate.setEnabled(false);storeUpdate.setAlpha(0.62f);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(-1,dp(44));storeUpdateLp.topMargin=dp(12);content.addView(storeUpdate,storeUpdateLp);
+        Button storeUpdate=actionButton("Update App Store",false);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(dp(300),dp(44));storeUpdateLp.gravity=Gravity.CENTER_HORIZONTAL;storeUpdateLp.topMargin=dp(12);content.addView(storeUpdate,storeUpdateLp);storeUpdate.setOnClickListener(v->checkStoreUpdate());
         Button exportLogs=actionButton("Export diagnostic log",false);LinearLayout.LayoutParams logsLp=new LinearLayout.LayoutParams(-1,dp(44));logsLp.topMargin=dp(6);content.addView(exportLogs,logsLp);exportLogs.setOnClickListener(v->exportLogcat());
         focusFirst();
     }
-    private void checkStoreUpdate(){if(!hasNetwork()){toast("No internet connection.");return;}toast("Checking Cloudflare for an App Store update…");new Thread(()->{try{JSONObject response=request("GET","/api/catalog",null,token);JSONArray apps=response.optJSONArray("apps");JSONObject self=null;if(apps!=null)for(int i=0;i<apps.length();i++){JSONObject app=apps.optJSONObject(i);if(app!=null&&getPackageName().equals(app.optString("packageName",""))){self=app;break;}}final JSONObject update=self;if(update==null){runOnUiThread(()->toast("No App Store update is published in the Cloudflare catalog yet."));return;}String remote=update.optString("version","");if(!isUpdateAvailable(getPackageName(),remote)){runOnUiThread(()->toast("YW App Store is already up to date."));return;}runOnUiThread(()->showAppPage(update));}catch(Exception e){runOnUiThread(()->toast("Could not check for an App Store update."));}},"YW-store-self-update-check").start();}
+    private void checkStoreUpdate(){
+        if(!hasNetwork()){toast("No internet connection.");return;}
+        toast("Checking for the latest App Store release…");
+        new Thread(()->{HttpsURLConnection connection=null;try{
+            connection=(HttpsURLConnection)new URL(STORE_UPDATE_MANIFEST_URL).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(15000);connection.setReadTimeout(20000);connection.setRequestProperty("Cache-Control","no-cache");
+            int status=connection.getResponseCode();if(status<200||status>=300)throw new IOException("Update manifest unavailable.");
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream in=connection.getInputStream()){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)bytes.write(buffer,0,n);}
+            JSONObject manifest=new JSONObject(bytes.toString("UTF-8"));String remote=manifest.optString("version","");if(remote.isEmpty())throw new IOException("The update manifest has no version.");
+            PackageInfo installed=getPackageManager().getPackageInfo(getPackageName(),0);String current=installed.versionName==null?"":installed.versionName;
+            JSONObject detail=new JSONObject();detail.put("id","yw-app-store-self-update");detail.put("name","YW App Store");detail.put("description","Update the YW App Store to the latest release.");detail.put("packageName",getPackageName());detail.put("version",remote);detail.put("sizeBytes",manifest.optLong("sizeBytes",0));detail.put("apkUrl",STORE_UPDATE_APK_URL);
+            boolean newer=isNewer(remote,current);
+            runOnUiThread(()->{if(!newer)toast("YW App Store is already up to date.");showAppPage(detail);});
+        }catch(Exception e){runOnUiThread(()->toast(e.getMessage()==null?"Could not check for an App Store update.":e.getMessage()));}finally{if(connection!=null)connection.disconnect();}},"YW-store-self-update-check").start();
+    }
     private void returnFromSettings(){if(settingsHost){if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}String previous=settingsReturnScreen;catalogScrollY=settingsReturnScrollY;restoreCatalogPosition=true;if("details".equals(previous)&&selectedApp!=null){showAppPage(selectedApp);return;}if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}returnToCatalog();}
     private void refreshCatalog(){if(catalogBusy){toast("The catalog is already refreshing.");return;}View focused=getCurrentFocus();if(focused==refreshFocusView)catalogFocusTarget="refresh";else if(catalogFocusedPackage!=null)catalogFocusTarget="app";catalogScrollY=pageScroll.getScrollY();restoreCatalogPosition=true;if(!hasNetwork()){toast("No internet connection.");if(catalogApps!=null)showCatalog(catalogApps,catalogCached);return;}if(catalogApps!=null)showCatalog(catalogApps,catalogCached);else{content.removeAllViews();message("Loading apps…");}loadCatalog();}
     private void exportLogcat(){String output;try{java.lang.Process process=Runtime.getRuntime().exec(new String[]{"logcat","-d","-v","time","-t","1000"});ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream in=process.getInputStream()){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)bytes.write(buffer,0,n);}process.waitFor();output=bytes.toString("UTF-8");if(output.trim().isEmpty())output="No logcat entries were returned. Android may restrict access to system logs.";}catch(Exception e){output="Could not read logcat: "+e.getMessage();}pendingLogcat=output;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TITLE,"yw-app-store-logcat.txt");try{startActivityForResult(intent,9201);}catch(Exception e){toast("Could not open the file picker to export the log.");}}
