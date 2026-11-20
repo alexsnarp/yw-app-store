@@ -34,7 +34,19 @@ public class InstallStatusReceiver extends BroadcastReceiver {
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(nm==null)return;
         if(Build.VERSION.SDK_INT>=26)nm.createNotificationChannel(new NotificationChannel(CHANNEL,"App installation",NotificationManager.IMPORTANCE_DEFAULT));
         Notification.Builder b=Build.VERSION.SDK_INT>=26?new Notification.Builder(c,CHANNEL):new Notification.Builder(c);
-        b.setSmallIcon(R.drawable.ic_yw_notification).setContentTitle("Installation failed").setContentText("The app could not be installed. You can try again from YW App Store.").setAutoCancel(true);
+        b.setSmallIcon(R.drawable.ic_yw_notification).setContentTitle("Installation failed")
+                .setContentText(c.getPackageName().equals(pkg)
+                        ? "The YW App Store update could not be installed. You can retry from this notification."
+                        : "The app could not be installed. You can try again from YW App Store.")
+                .setAutoCancel(true);
+        if (c.getPackageName().equals(pkg)) {
+            Intent retry = new Intent(c, InstallUpdateService.class);
+            retry.setAction(InstallUpdateService.ACTION_INSTALL_CLOUDFLARE_UPDATE);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent retryAction = PendingIntent.getService(c, 2406, retry, flags);
+            b.addAction(android.R.drawable.ic_popup_sync, "Retry update", retryAction);
+        }
         nm.notify((int)(System.currentTimeMillis()&0x7fffffff),b.build());
     }
     private android.graphics.Bitmap loadInstalledIcon(Context c,String pkg){try{android.graphics.drawable.Drawable d=c.getPackageManager().getApplicationIcon(pkg);int size=(int)(c.getResources().getDisplayMetrics().density*48+0.5f);android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(size,size,android.graphics.Bitmap.Config.ARGB_8888);android.graphics.Canvas canvas=new android.graphics.Canvas(bitmap);d.setBounds(0,0,size,size);d.draw(canvas);return bitmap;}catch(Exception ignored){return null;}}
