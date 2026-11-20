@@ -15,7 +15,8 @@ jobs:
       YW_KEYSTORE_PASSWORD: ${{ secrets.YW_KEYSTORE_PASSWORD }}
       YW_KEY_ALIAS: ${{ secrets.YW_KEY_ALIAS }}
       YW_KEY_PASSWORD: ${{ secrets.YW_KEY_PASSWORD }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -70,19 +71,16 @@ jobs:
             latest.json
           if-no-files-found: error
       - name: Publish signed release to Cloudflare R2
-        if: ${{ github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != '' && env.YW_KEYSTORE_BASE64 != '' }}
+        if: ${{ github.event_name != 'pull_request' && env.R2_ACCESS_KEY_ID != '' && env.R2_SECRET_ACCESS_KEY != '' && env.YW_KEYSTORE_BASE64 != '' }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
         run: |
-          curl --fail-with-body --silent --show-error -X PUT \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/yw-app-store.apk" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            -H "Cache-Control: public, max-age=60" \
-            --data-binary @yw-app-store.apk
-          curl --fail-with-body --silent --show-error -X PUT \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/latest.json" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            -H "Cache-Control: no-store" \
-            --data-binary @latest.json
+          aws s3 cp yw-app-store.apk s3://yw-app-store-updates/yw-app-store.apk \
+            --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+            --region auto --content-type application/vnd.android.package-archive \
+            --cache-control "public, max-age=60"
+          aws s3 cp latest.json s3://yw-app-store-updates/latest.json \
+            --endpoint-url "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com" \
+            --region auto --content-type application/json --cache-control "no-store"
