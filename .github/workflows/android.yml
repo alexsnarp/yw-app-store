@@ -78,9 +78,11 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/yw-app-store.apk" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/vnd.android.package-archive" \
+            -H "Cache-Control: public, max-age=60" \
             --data-binary @yw-app-store.apk
           curl --fail-with-body --silent --show-error -X PUT \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/latest.json" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" \
+            -H "Cache-Control: no-store" \
             --data-binary @latest.json
