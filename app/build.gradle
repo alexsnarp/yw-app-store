@@ -10,8 +10,7 @@ android {
     defaultConfig {
         applicationId 'com.lge.lginstallservies'
         minSdk 23
-        // API 22 keeps READ_EXTERNAL_STORAGE as an install-time grant on Android 6,
-        // so the account-sync notification can access the prepared APK before first launch.
+        // Keep the legacy target level for Android 6 device compatibility.
         targetSdk 22
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         versionCode 3
