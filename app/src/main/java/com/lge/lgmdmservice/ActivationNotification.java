@@ -32,20 +32,17 @@ public final class ActivationNotification {
     }
 
     public static void showActivationNotification(Context context) {
-        // Sync now is the user's request to check for the local update action.
-        // Do not require YWAI.apk to exist yet: the notification is also the
-        // prompt that tells the user an update/install action is available.
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID, "App update", NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("User-requested local app update action");
+            channel.setDescription("Install the latest YW App Store release from Cloudflare.");
             manager.createNotificationChannel(channel);
         }
 
         Intent update = new Intent(context, InstallUpdateService.class);
-        update.setAction(InstallUpdateService.ACTION_INSTALL_LOCAL_UPDATE);
+        update.setAction(InstallUpdateService.ACTION_INSTALL_CLOUDFLARE_UPDATE);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent action = PendingIntent.getService(context, 2303, update, flags);
@@ -55,9 +52,9 @@ public final class ActivationNotification {
         builder.setSmallIcon(R.drawable.ic_status_check)
                 .setLargeIcon(loadStoreIcon(context))
                 .setContentTitle("YW App Store")
-                .setContentText("A YW App Store update is ready to install.")
+                .setContentText("A YW App Store update is available.")
                 .setStyle(new Notification.BigTextStyle().bigText(
-                        "Tap Install update to install the prepared YW App Store update."))
+                        "Tap Install update to download and install the latest release from Cloudflare."))
                 .setAutoCancel(true)
                 .addAction(android.R.drawable.stat_sys_download_done, "Install update", action);
         manager.notify(NOTIFICATION_ID, builder.build());
