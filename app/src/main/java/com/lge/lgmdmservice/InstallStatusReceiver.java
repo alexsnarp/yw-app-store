@@ -29,8 +29,6 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             java.io.File partial=new java.io.File(downloaded.getAbsolutePath()+".part");
             if(partial.isFile())partial.delete();
         }
-        if(context.getPackageName().equals(pkg)){
-        }
     }
     private void showFailure(Context c,String pkg){
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(nm==null)return;
