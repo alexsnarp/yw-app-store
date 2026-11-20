@@ -14,8 +14,31 @@ android {
         // so the account-sync notification can access the prepared APK before first launch.
         targetSdk 22
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        versionCode 2
-        versionName '2.0'
+        versionCode 3
+        versionName '2.1'
+    }
+
+    signingConfigs {
+        release {
+            def keyFile = System.getenv('YW_KEYSTORE_FILE')
+            if (keyFile != null && !keyFile.isEmpty()) {
+                storeFile file(keyFile)
+                storePassword System.getenv('YW_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('YW_KEY_ALIAS')
+                keyPassword System.getenv('YW_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv('YW_KEYSTORE_FILE') != null && !System.getenv('YW_KEYSTORE_FILE').isEmpty()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+        }
     }
 }
 
