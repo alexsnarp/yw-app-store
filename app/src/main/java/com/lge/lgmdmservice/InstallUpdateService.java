@@ -50,7 +50,7 @@ public class InstallUpdateService extends IntentService {
             connection.setInstanceFollowRedirects(true);
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300) throw new java.io.IOException("Cloudflare returned HTTP " + status);
-            long total = connection.getContentLengthLong();
+            long total = connection.getContentLength();
             long done = 0;
             try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(partial)) {
                 byte[] buffer = new byte[65536];
