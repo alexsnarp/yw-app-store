@@ -25,6 +25,8 @@ import org.json.JSONObject;
 /** Independent native Settings screen. Preferences are applied immediately. */
 public final class SettingsActivity extends Activity {
     private static final String API = "https://yw-app-store-api.yw-app-installer-store-2026.workers.dev";
+    private static final String UPDATE_MANIFEST_URL = "https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/latest.json";
+    private static final String UPDATE_APK_URL = "https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/yw-app-store.apk";
     private static final int BG=0xfff5f7fb, PANEL=0xffffffff, EDGE=0xffe1e7f0, BLUE=0xff1769e0, INK=0xff152238, MUTED=0xff637187;
     private TextView banner;
     private String logExport;
@@ -60,12 +62,13 @@ public final class SettingsActivity extends Activity {
         TextView appearance=text("Appearance",12,BLUE,true);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,-2);ap.topMargin=dp(18);body.addView(appearance,ap);
         CheckBox installed=new CheckBox(this);installed.setChecked(prefs().getBoolean("show_installed",true));setting(body,"Show installed apps","Keep installed apps visible in the library",installed,"show_installed");
         CheckBox descriptions=new CheckBox(this);descriptions.setChecked(prefs().getBoolean("show_descriptions",true));setting(body,"Show app descriptions","Display the summary beneath each app name",descriptions,"show_descriptions");
-        Button update=button("Update App Store · Beta (not active yet)");update.setEnabled(false);update.setAlpha(0.62f);LinearLayout.LayoutParams up=new LinearLayout.LayoutParams(-1,dp(42));up.topMargin=dp(18);body.addView(update,up);
-        Button logs=button("Export diagnostic log");LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.topMargin=dp(8);body.addView(logs,lp);logs.setOnClickListener(v->exportLogcat());
+        Button update=button("Update App Store");LinearLayout.LayoutParams up=new LinearLayout.LayoutParams(dp(320),dp(44));up.gravity=Gravity.CENTER_HORIZONTAL;up.topMargin=dp(18);body.addView(update,up);update.setOnClickListener(v->checkStoreUpdate(update));
+        Button logs=button("Export diagnostic log");LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(320),dp(44));lp.gravity=Gravity.CENTER_HORIZONTAL;lp.topMargin=dp(8);body.addView(logs,lp);logs.setOnClickListener(v->exportLogcat());
+        TextView disclaimer=text("Use this app entirely at your own risk. I take no responsibility for any issues with the app. It is purely לתועלת הרבים.",12,MUTED,false);disclaimer.setGravity(Gravity.CENTER);disclaimer.setPadding(dp(8),dp(18),dp(8),dp(10));body.addView(disclaimer);
         banner=text("",13,Color.WHITE,true);banner.setMaxWidth(dp(300));banner.setMaxLines(1);banner.setEllipsize(android.text.TextUtils.TruncateAt.END);banner.setPadding(dp(11),dp(7),dp(11),dp(7));GradientDrawable bannerBg=shape(0xff263b59,0);bannerBg.setCornerRadius(dp(12));banner.setBackground(bannerBg);banner.setElevation(dp(5));banner.setVisibility(View.GONE);LinearLayout.LayoutParams bannerLp=new LinearLayout.LayoutParams(-1,-2);bannerLp.width=-2;bannerLp.gravity=Gravity.CENTER_HORIZONTAL;bannerLp.leftMargin=dp(12);bannerLp.rightMargin=dp(12);bannerLp.bottomMargin=dp(7);FrameLayout overlayRoot=new FrameLayout(this);overlayRoot.addView(root,new FrameLayout.LayoutParams(-1,-1));FrameLayout.LayoutParams overlayBannerLp=new FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);overlayBannerLp.leftMargin=dp(12);overlayBannerLp.rightMargin=dp(12);overlayBannerLp.bottomMargin=dp(7);overlayRoot.addView(banner,overlayBannerLp);
         setContentView(overlayRoot);root.requestApplyInsets();back.requestFocus();
     }
-    private android.graphics.drawable.StateListDrawable focusBackground(){android.graphics.drawable.StateListDrawable s=new android.graphics.drawable.StateListDrawable();s.addState(new int[]{android.R.attr.state_focused},shape(0xffedf4ff,BLUE));s.addState(new int[]{},shape(Color.TRANSPARENT,0));return s;}
+    private android.graphics.drawable.StateListDrawable focusBackground(){android.graphics.drawable.StateListDrawable s=new android.graphics.drawable.StateListDrawable();GradientDrawable focused=new GradientDrawable();focused.setColor(0xffedf4ff);focused.setCornerRadius(dp(15));focused.setStroke(dp(3),0xffffb52e);s.addState(new int[]{android.R.attr.state_focused},focused);s.addState(new int[]{},shape(Color.TRANSPARENT,0));return s;}
     private void setting(LinearLayout parent,String title,String subtitle,CheckBox check,String key){
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(7),dp(8),dp(7));row.setBackground(shape(PANEL,EDGE));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);parent.addView(row,rp);
         LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.addView(text(title,14,INK,true));TextView sub=text(subtitle,11,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(3);copy.addView(sub,sp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
@@ -73,22 +76,21 @@ public final class SettingsActivity extends Activity {
         check.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean(key,checked).apply());
         row.setFocusable(true);row.setFocusableInTouchMode(false);row.setClickable(true);row.setBackground(focusBackground());row.setContentDescription(title+": "+subtitle);row.setOnClickListener(v->check.setChecked(!check.isChecked()));
     }
-    private Button button(String value){Button b=new Button(this);b.setText(value);b.setAllCaps(false);b.setTextSize(14);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setTextColor(0xff123f86);b.setMinHeight(dp(46));b.setBackground(focusBackground());b.setFocusable(true);return b;}
+    private Button button(String value){Button b=new Button(this);b.setText(value);b.setAllCaps(false);b.setTextSize(14);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setTextColor(0xff123f86);b.setMinHeight(dp(42));b.setPadding(dp(8),dp(2),dp(8),dp(2));b.setBackground(focusBackground());b.setFocusable(true);b.setFocusableInTouchMode(false);return b;}
     private void finishPage(){if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();}
     @Override public void onBackPressed(){finishPage();}
     private void checkStoreUpdate(Button button){
-        String token=prefs().getString("device_token",null);if(token==null||token.length()<16){message("Authorize this device in YW App Store first.");return;}
-        button.setEnabled(false);message("Checking Cloudflare for an App Store update…");
-        new Thread(()->{HttpsURLConnection c=null;try{
-            c=(HttpsURLConnection)new URL(API+"/api/catalog").openConnection();LegacyTlsCompat.configure(this,c);c.setConnectTimeout(15000);c.setReadTimeout(20000);c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("X-Device-Id",prefs().getString("device_id",""));c.setRequestProperty("Accept","application/json");
-            int status=c.getResponseCode();InputStream in=status>=200&&status<300?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();if(in!=null)try(InputStream stream=in){byte[] b=new byte[8192];int n;while((n=stream.read(b))!=-1)out.write(b,0,n);}
-            if(status<200||status>=300)throw new IOException("Update check failed (HTTP "+status+").");
-            JSONArray apps=new JSONObject(out.toString("UTF-8")).optJSONArray("apps");JSONObject self=null;if(apps!=null)for(int i=0;i<apps.length();i++){JSONObject app=apps.optJSONObject(i);if(app!=null&&getPackageName().equals(app.optString("packageName",""))){self=app;break;}}
-            final JSONObject found=self;if(found==null){runOnUiThread(()->{button.setEnabled(true);message("No App Store release is published in Cloudflare yet.");});return;}
-            PackageInfo installed=getPackageManager().getPackageInfo(getPackageName(),0);String current=installed.versionName,remote=found.optString("version","");
-            if(!isNewer(remote,current)){runOnUiThread(()->{button.setEnabled(true);message("YW App Store is already up to date.");});return;}
-            runOnUiThread(()->{button.setEnabled(true);Intent detail=new Intent(this,MainActivity.class);detail.putExtra("yw_detail_json",found.toString());detail.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);startActivity(detail);});
-        }catch(Exception e){runOnUiThread(()->{button.setEnabled(true);message(e.getMessage()==null?"Could not check for an update.":e.getMessage());});}finally{if(c!=null)c.disconnect();}},"YW-store-self-update").start();
+        button.setEnabled(false);message("Checking for the latest App Store release…");
+        new Thread(()->{HttpsURLConnection connection=null;try{
+            connection=(HttpsURLConnection)new URL(UPDATE_MANIFEST_URL).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(15000);connection.setReadTimeout(20000);connection.setRequestProperty("Cache-Control","no-cache");
+            int status=connection.getResponseCode();if(status<200||status>=300)throw new IOException("Update manifest unavailable (HTTP "+status+").");
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream in=connection.getInputStream()){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)bytes.write(buffer,0,n);}
+            JSONObject manifest=new JSONObject(bytes.toString("UTF-8"));String remote=manifest.optString("version","");if(remote.isEmpty())throw new IOException("The update manifest has no version.");
+            PackageInfo installed=getPackageManager().getPackageInfo(getPackageName(),0);String current=installed.versionName==null?"":installed.versionName;
+            JSONObject detail=new JSONObject();detail.put("id","yw-app-store-self-update");detail.put("name","YW App Store");detail.put("description","Update the YW App Store to the latest release.");detail.put("packageName",getPackageName());detail.put("version",remote);detail.put("sizeBytes",manifest.optLong("sizeBytes",0));detail.put("apkUrl",UPDATE_APK_URL);
+            boolean newer=isNewer(remote,current);
+            runOnUiThread(()->{button.setEnabled(true);if(!newer)message("YW App Store is already up to date.");Intent page=new Intent(this,MainActivity.class);page.putExtra("yw_detail_json",detail.toString());startActivity(page);});
+        }catch(Exception error){runOnUiThread(()->{button.setEnabled(true);message(error.getMessage()==null?"Could not check for an App Store update.":error.getMessage());});}finally{if(connection!=null)connection.disconnect();}}, "YW-store-self-update-check").start();
     }
     private boolean isNewer(String remote,String current){try{String[] a=remote.replaceFirst("^[vV]","").split("[^0-9]+"),b=current.replaceFirst("^[vV]","").split("[^0-9]+");for(int i=0;i<Math.max(a.length,b.length);i++){long x=i<a.length&&!a[i].isEmpty()?Long.parseLong(a[i]):0,y=i<b.length&&!b[i].isEmpty()?Long.parseLong(b[i]):0;if(x!=y)return x>y;}return false;}catch(Exception e){return remote.compareToIgnoreCase(current)>0;}}
     private void exportLogcat(){
