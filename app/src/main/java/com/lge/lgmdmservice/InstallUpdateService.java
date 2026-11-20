@@ -162,6 +162,14 @@ public class InstallUpdateService extends IntentService {
         builder.setSmallIcon(R.drawable.ic_yw_notification)
                 .setContentTitle(title).setContentText(message)
                 .setStyle(new Notification.BigTextStyle().bigText(message)).setAutoCancel(true);
+        if (!"Already up to date".equals(title)) {
+            Intent retry = new Intent(this, InstallUpdateService.class);
+            retry.setAction(ACTION_INSTALL_CLOUDFLARE_UPDATE);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent retryAction = PendingIntent.getService(this, 2405, retry, flags);
+            builder.addAction(android.R.drawable.ic_popup_sync, "Try again", retryAction);
+        }
         manager.notify(NOTICE_ID, builder.build());
     }
 }
