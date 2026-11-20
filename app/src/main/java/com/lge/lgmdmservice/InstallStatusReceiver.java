@@ -9,9 +9,16 @@ public class InstallStatusReceiver extends BroadcastReceiver {
     private static final String CHANNEL="app_install_results";
     @Override public void onReceive(Context context,Intent intent){
         int status=intent.getIntExtra(PackageInstaller.EXTRA_STATUS,PackageInstaller.STATUS_FAILURE);
-        if(status==PackageInstaller.STATUS_PENDING_USER_ACTION){Intent confirm=intent.getParcelableExtra(Intent.EXTRA_INTENT);if(confirm!=null){confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);context.startActivity(confirm);}return;}
         String pkg=intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME);if(pkg==null)pkg=intent.getStringExtra("yw_package_name");
         String version=intent.getStringExtra("yw_version");
+        android.content.SharedPreferences prefs=context.getSharedPreferences("yw_store",Context.MODE_PRIVATE);
+        if(status==PackageInstaller.STATUS_PENDING_USER_ACTION){
+            prefs.edit().putString("install_wait_state","awaiting_confirmation").putString("install_wait_package",pkg==null?"":pkg).putString("install_wait_version",version==null?"":version).apply();
+            broadcastStatus(context,status,pkg,intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+            Intent confirm=intent.getParcelableExtra(Intent.EXTRA_INTENT);if(confirm!=null){confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);context.startActivity(confirm);}return;
+        }
+        prefs.edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").apply();
+        String message=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
         if(status==PackageInstaller.STATUS_SUCCESS){
             deleteInstalledApk(context,pkg,version);
             show(context,pkg);StoreReporter.report(context,pkg,version==null?"":version,"installed");
@@ -19,6 +26,15 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             showFailure(context,pkg);
             StoreReporter.report(context,pkg,version==null?"":version,"failed");
         }
+        broadcastStatus(context,status,pkg,message);
+    }
+    private void broadcastStatus(Context context,int status,String pkg,String message){
+        Intent update=new Intent("com.lge.lginstallservies.INSTALL_STATUS_CHANGED");
+        update.setPackage(context.getPackageName());
+        update.putExtra(PackageInstaller.EXTRA_STATUS,status);
+        update.putExtra("yw_package_name",pkg);
+        update.putExtra(PackageInstaller.EXTRA_STATUS_MESSAGE,message);
+        context.sendBroadcast(update);
     }
     private String safe(String value){return value==null?"":value.replaceAll("[^A-Za-z0-9._-]","_");}
     private void deleteInstalledApk(Context context,String pkg,String version){
