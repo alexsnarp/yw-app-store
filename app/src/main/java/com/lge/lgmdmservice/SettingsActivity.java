@@ -90,7 +90,11 @@ public final class SettingsActivity extends Activity {
             JSONObject detail=new JSONObject();detail.put("id","yw-app-store-self-update");detail.put("name","YW App Store");detail.put("description","Update the YW App Store to the latest release.");detail.put("packageName",getPackageName());detail.put("version",remote);detail.put("sizeBytes",manifest.optLong("sizeBytes",0));detail.put("apkUrl",UPDATE_APK_URL);
             boolean newer=isNewer(remote,current);
             runOnUiThread(()->{button.setEnabled(true);if(!newer)message("YW App Store is already up to date.");Intent page=new Intent(this,MainActivity.class);page.putExtra("yw_detail_json",detail.toString());startActivity(page);});
-        }catch(Exception error){runOnUiThread(()->{button.setEnabled(true);message(error.getMessage()==null?"Could not check for an App Store update.":error.getMessage());});}finally{if(connection!=null)connection.disconnect();}}, "YW-store-self-update-check").start();
+        }catch(Exception error){try{
+            PackageInfo installed=getPackageManager().getPackageInfo(getPackageName(),0);String current=installed.versionName==null?"":installed.versionName;
+            JSONObject detail=new JSONObject();detail.put("id","yw-app-store-self-update");detail.put("name","YW App Store");detail.put("description","Update the YW App Store to the latest release.");detail.put("packageName",getPackageName());detail.put("version",current);detail.put("sizeBytes",0);detail.put("apkUrl",UPDATE_APK_URL);
+            runOnUiThread(()->{button.setEnabled(true);message("No update release is currently published.");Intent page=new Intent(this,MainActivity.class);page.putExtra("yw_detail_json",detail.toString());startActivity(page);});
+        }catch(Exception fallbackError){runOnUiThread(()->{button.setEnabled(true);message("Could not open App Store update details.");});}}finally{if(connection!=null)connection.disconnect();}}, "YW-store-self-update-check").start();
     }
     private boolean isNewer(String remote,String current){try{String[] a=remote.replaceFirst("^[vV]","").split("[^0-9]+"),b=current.replaceFirst("^[vV]","").split("[^0-9]+");for(int i=0;i<Math.max(a.length,b.length);i++){long x=i<a.length&&!a[i].isEmpty()?Long.parseLong(a[i]):0,y=i<b.length&&!b[i].isEmpty()?Long.parseLong(b[i]):0;if(x!=y)return x>y;}return false;}catch(Exception e){return remote.compareToIgnoreCase(current)>0;}}
     private void exportLogcat(){
