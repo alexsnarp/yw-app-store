@@ -151,7 +151,7 @@ public class MainActivity extends Activity {
         mobile.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("mobile_data",checked).apply());
         installed.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_installed",checked).apply());
         descriptions.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean("show_descriptions",checked).apply());
-        downloadAppsButton=actionButton(downloadAllActive?"Downloading apps…":"Download available apps",false);downloadAppsButton.setEnabled(!downloadAllActive);LinearLayout.LayoutParams bulkLp=new LinearLayout.LayoutParams(-1,dp(44));bulkLp.topMargin=dp(12);content.addView(downloadAppsButton,bulkLp);downloadAppsButton.setOnClickListener(v->downloadAllApps());
+        downloadAppsButton=actionButton("Download available apps",false);LinearLayout.LayoutParams bulkLp=new LinearLayout.LayoutParams(-1,dp(44));bulkLp.topMargin=dp(12);content.addView(downloadAppsButton,bulkLp);downloadAppsButton.setOnClickListener(v->startBulkDownloadFromSettings());
         Button storeUpdate=actionButton("Update App Store",false);LinearLayout.LayoutParams storeUpdateLp=new LinearLayout.LayoutParams(-1,dp(44));storeUpdateLp.topMargin=dp(6);content.addView(storeUpdate,storeUpdateLp);storeUpdate.setOnClickListener(v->checkStoreUpdate());
         Button exportLogs=actionButton("Export diagnostic log",false);LinearLayout.LayoutParams logsLp=new LinearLayout.LayoutParams(-1,dp(44));logsLp.topMargin=dp(6);content.addView(exportLogs,logsLp);exportLogs.setOnClickListener(v->exportLogcat());
         focusFirst();
@@ -399,6 +399,7 @@ public class MainActivity extends Activity {
     private void focusFirst(){if(content==null)return;content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);content.post(()->{if(content==null)return;View first=findButtonFocusable(content);if(first==null)first=findFocusable(content);if(first!=null){first.setFocusable(true);first.requestFocus();}});}
     private View findButtonFocusable(ViewGroup g){for(int i=0;i<g.getChildCount();i++){View v=g.getChildAt(i);if(v instanceof Button&&v.isFocusable()&&v.getVisibility()==View.VISIBLE)return v;if(v instanceof ViewGroup){View f=findButtonFocusable((ViewGroup)v);if(f!=null)return f;}}return null;}
     private View findFocusable(ViewGroup g){for(int i=0;i<g.getChildCount();i++){View v=g.getChildAt(i);if(v.isFocusable()&&v.getVisibility()==View.VISIBLE&&!(v instanceof EditText))return v;if(v instanceof ViewGroup){View f=findFocusable((ViewGroup)v);if(f!=null)return f;}}return null;}
+    private void startBulkDownloadFromSettings(){MainActivity host=catalogHostRef==null?null:catalogHostRef.get();if(host==null)host=this;host.downloadAllApps();}
     private void downloadAllApps(){
         if(downloadAllActive){toast("Download all is already running.");return;}
         if(catalogApps==null||catalogApps.length()==0){toast("The app list is not loaded yet.");return;}
