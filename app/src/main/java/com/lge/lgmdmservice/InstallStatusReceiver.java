@@ -29,10 +29,6 @@ public class InstallStatusReceiver extends BroadcastReceiver {
             java.io.File partial=new java.io.File(downloaded.getAbsolutePath()+".part");
             if(partial.isFile())partial.delete();
         }
-        if(context.getPackageName().equals(pkg)){
-            java.io.File selfUpdate=new java.io.File(android.os.Environment.getExternalStorageDirectory(),"YWAI.apk");
-            if(selfUpdate.isFile())selfUpdate.delete();
-        }
     }
     private void showFailure(Context c,String pkg){
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(nm==null)return;

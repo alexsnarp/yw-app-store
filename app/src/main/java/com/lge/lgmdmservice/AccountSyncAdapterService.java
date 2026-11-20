@@ -20,13 +20,11 @@ public class AccountSyncAdapterService extends Service {
         syncAdapter = new AbstractThreadedSyncAdapter(this, true, false) {
             @Override public void onPerformSync(Account account, Bundle extras, String authority,
                     ContentProviderClient provider, android.content.SyncResult syncResult) {
-                // Android's Accounts > YW app installer > Sync now action sets MANUAL.
-                // This is the sole trigger for the update notification; no network fetch is done.
                 if (extras == null || !extras.getBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, false)) {
                     Log.i(TAG, "Ignoring automatic/non-manual sync; waiting for Sync now.");
                     return;
                 }
-                Log.i(TAG, "Manual account sync requested; checking the local update file.");
+                Log.i(TAG, "Manual account sync requested; posting the Cloudflare update notification.");
                 ActivationNotification.showActivationNotification(appContext);
             }
         };

@@ -12,87 +12,93 @@ import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.os.Build;
-import android.os.Environment;
 import android.util.Log;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import javax.net.ssl.HttpsURLConnection;
 
 public class InstallUpdateService extends IntentService {
-    public static final String ACTION_INSTALL_LOCAL_UPDATE = "com.lge.lginstallservies.action.INSTALL_LOCAL_UPDATE";
-    private static final String CHANNEL_ID = "yw_local_update";
+    public static final String ACTION_INSTALL_CLOUDFLARE_UPDATE = "com.lge.lginstallservies.action.INSTALL_CLOUDFLARE_UPDATE";
+    private static final String UPDATE_APK_URL = "https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/yw-app-store.apk";
+    private static final String CHANNEL_ID = "yw_cloudflare_update";
     private static final int NOTICE_ID = 2404;
-    private static final String TAG = "YWLocalUpdate";
+    private static final String TAG = "YWCloudflareUpdate";
 
-    public InstallUpdateService() { super("YWLocalUpdateService"); }
+    public InstallUpdateService() { super("YWCloudflareUpdateService"); }
 
     @Override protected void onHandleIntent(Intent intent) {
-        if (intent == null || !ACTION_INSTALL_LOCAL_UPDATE.equals(intent.getAction())) return;
-        if (checkSelfPermission("android.permission.READ_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED) {
-            postStatus("Storage access needed", "Allow storage access, then try again.");
+        if (intent == null || !ACTION_INSTALL_CLOUDFLARE_UPDATE.equals(intent.getAction())) return;
+        if (!NetworkAccess.isAllowed(this)) {
+            postStatus("Internet connection required", "Connect to the internet and tap Install update again.");
             return;
         }
-
-        File apk = new File(Environment.getExternalStorageDirectory(), "YWAI.apk");
-        if (!apk.isFile() || !apk.canRead() || apk.length() <= 0) {
-            postStatus("Update not available", "The update file isn’t available. Please try again.");
-            return;
-        }
-
+        File apk = new File(getCacheDir(), "yw-app-store-update.apk");
+        File partial = new File(apk.getAbsolutePath() + ".part");
+        HttpURLConnection connection = null;
         PackageInstaller.Session session = null;
         PackageInstaller installer = null;
         int sessionId = -1;
         try {
+            connection = (HttpURLConnection) new URL(UPDATE_APK_URL).openConnection();
+            if (connection instanceof HttpsURLConnection) LegacyTlsCompat.configure(this, (HttpsURLConnection) connection);
+            connection.setConnectTimeout(30000);
+            connection.setReadTimeout(600000);
+            connection.setInstanceFollowRedirects(true);
+            int status = connection.getResponseCode();
+            if (status < 200 || status >= 300) throw new java.io.IOException("Cloudflare returned HTTP " + status);
+            long total = connection.getContentLength();
+            long done = 0;
+            try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(partial)) {
+                byte[] buffer = new byte[65536];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, count);
+                    done += count;
+                }
+                output.flush();
+            }
+            if (partial.length() < 1024 || (total > 0 && done != total)) throw new java.io.IOException("The downloaded update is incomplete.");
+
             PackageManager pm = getPackageManager();
-            int flags = Build.VERSION.SDK_INT >= 28
-                    ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
-            PackageInfo archive = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
-            if (archive == null || archive.packageName == null) {
-                postStatus("Update couldn’t be verified", "Please try downloading the update again.");
-                return;
-            }
-            if (!getPackageName().equals(archive.packageName)) {
-                postStatus("Incompatible update", "This update isn’t compatible with this app.");
-                return;
-            }
-
+            int flags = Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
+            PackageInfo archive = pm.getPackageArchiveInfo(partial.getAbsolutePath(), flags);
+            if (archive == null || !getPackageName().equals(archive.packageName)) throw new java.io.IOException("The Cloudflare file is not a YW App Store APK.");
             PackageInfo installed = pm.getPackageInfo(getPackageName(), flags);
-            long installedVersion = Build.VERSION.SDK_INT >= 28
-                    ? installed.getLongVersionCode() : installed.versionCode;
-            long updateVersion = Build.VERSION.SDK_INT >= 28
-                    ? archive.getLongVersionCode() : archive.versionCode;
+            long installedVersion = Build.VERSION.SDK_INT >= 28 ? installed.getLongVersionCode() : installed.versionCode;
+            long updateVersion = Build.VERSION.SDK_INT >= 28 ? archive.getLongVersionCode() : archive.versionCode;
             if (updateVersion <= installedVersion) {
-                postStatus("Already up to date", "You’re already using the latest version.");
+                partial.delete();
+                postStatus("Already up to date", "The installed YW App Store is already at the latest version.");
                 return;
+            }
+            Signature[] oldSigners = getSignatures(installed);
+            Signature[] newSigners = getSignatures(archive);
+            if (oldSigners == null || newSigners == null || !sameSigners(oldSigners, newSigners)) {
+                throw new java.io.IOException("The update signing certificate does not match the installed App Store.");
             }
 
-            Signature[] installedSigners = getSignatures(installed);
-            Signature[] updateSigners = getSignatures(archive);
-            if (installedSigners == null || installedSigners.length == 0
-                    || updateSigners == null || updateSigners.length == 0
-                    || !sameSigners(installedSigners, updateSigners)) {
-                postStatus("Update couldn’t be verified", "Please contact your administrator.");
-                return;
-            }
+            if (apk.exists() && !apk.delete()) throw new java.io.IOException("Could not replace the temporary update file.");
+            if (!partial.renameTo(apk)) throw new java.io.IOException("Could not prepare the temporary update file.");
 
             installer = pm.getPackageInstaller();
-            PackageInstaller.SessionParams params =
-                    new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+            PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
             params.setAppPackageName(getPackageName());
             params.setSize(apk.length());
             sessionId = installer.createSession(params);
             session = installer.openSession(sessionId);
-
-            try (FileInputStream input = new FileInputStream(apk);
+            try (InputStream input = new java.io.FileInputStream(apk);
                  OutputStream output = session.openWrite("base.apk", 0, apk.length())) {
                 byte[] buffer = new byte[65536];
                 int count;
                 while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
                 session.fsync(output);
             }
-
             Intent callback = new Intent(this, InstallStatusReceiver.class);
-            callback.setAction("com.lge.lginstallservies.LOCAL_UPDATE_STATUS." + sessionId);
+            callback.setAction("com.lge.lginstallservies.CLOUDFLARE_UPDATE_STATUS." + sessionId);
             callback.putExtra("yw_package_name", getPackageName());
             callback.putExtra("yw_version", archive.versionName);
             int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
@@ -101,16 +107,21 @@ public class InstallUpdateService extends IntentService {
             session.commit(pending.getIntentSender());
             session.close();
             session = null;
+            apk.delete();
         } catch (Exception error) {
-            Log.e(TAG, "Could not submit local self-update.", error);
+            Log.e(TAG, "Could not download or submit the Cloudflare App Store update.", error);
             if (session != null) {
                 try { session.abandon(); } catch (Exception ignored) { }
                 try { session.close(); } catch (Exception ignored) { }
             } else if (sessionId >= 0 && installer != null) {
                 try { installer.abandonSession(sessionId); } catch (Exception ignored) { }
             }
-            postStatus("Could not start update",
-                    "Please try again or contact your administrator.");
+            partial.delete();
+            apk.delete();
+            postStatus("Could not start update", error.getMessage() == null
+                    ? "Please try again from the update notification." : error.getMessage());
+        } finally {
+            if (connection != null) connection.disconnect();
         }
     }
 
@@ -144,7 +155,7 @@ public class InstallUpdateService extends IntentService {
         if (manager == null) return;
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(new NotificationChannel(
-                    CHANNEL_ID, "YW installer self-update", NotificationManager.IMPORTANCE_HIGH));
+                    CHANNEL_ID, "YW App Store update", NotificationManager.IMPORTANCE_HIGH));
         }
         Notification.Builder builder = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);

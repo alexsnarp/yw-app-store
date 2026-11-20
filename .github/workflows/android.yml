@@ -1,7 +1,6 @@
 name: Android build
 on:
   push:
-    branches: [ main ]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -10,6 +9,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: b7f52ab9d55479bb170432ddb0e47114
+      YW_KEYSTORE_BASE64: ${{ secrets.YW_KEYSTORE_BASE64 }}
+      YW_KEYSTORE_PASSWORD: ${{ secrets.YW_KEYSTORE_PASSWORD }}
+      YW_KEY_ALIAS: ${{ secrets.YW_KEY_ALIAS }}
+      YW_KEY_PASSWORD: ${{ secrets.YW_KEY_PASSWORD }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -19,12 +25,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Prepare permanent signing key
+        if: ${{ env.YW_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "$YW_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yw-app-store-release.jks"
+          echo "YW_KEYSTORE_FILE=$RUNNER_TEMP/yw-app-store-release.jks" >> "$GITHUB_ENV"
       - name: Run unit tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Run Android lint
         run: gradle --no-daemon lintDebug
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
+      - name: Build signed release APK
+        if: ${{ env.YW_KEYSTORE_BASE64 != '' }}
+        run: gradle --no-daemon assembleRelease
       - name: Package source ZIP
         run: git archive --format=zip --output=yw-app-store-source.zip HEAD
       - name: Upload source ZIP
@@ -33,9 +47,40 @@ jobs:
           name: yw-app-store-source
           path: yw-app-store-source.zip
           if-no-files-found: error
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: yw-app-store-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Prepare Cloudflare release files
+        if: ${{ env.YW_KEYSTORE_BASE64 != '' }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk yw-app-store.apk
+          SIZE_BYTES=$(stat -c%s yw-app-store.apk)
+          VERSION=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n 1)
+          printf '{"version":"%s","sizeBytes":%s,"packageName":"com.lge.lginstallservies","apk":"yw-app-store.apk"}\n' "$VERSION" "$SIZE_BYTES" > latest.json
+      - name: Upload signed release APK artifact
+        if: ${{ env.YW_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: yw-app-store-release
+          path: |
+            yw-app-store.apk
+            latest.json
+          if-no-files-found: error
+      - name: Publish signed release to Cloudflare R2
+        if: ${{ github.event_name != 'pull_request' && env.CLOUDFLARE_API_TOKEN != '' && env.YW_KEYSTORE_BASE64 != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          curl --fail-with-body --silent --show-error -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/yw-app-store.apk" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @yw-app-store.apk
+          curl --fail-with-body --silent --show-error -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets/yw-app-store-updates/objects/latest.json" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @latest.json
