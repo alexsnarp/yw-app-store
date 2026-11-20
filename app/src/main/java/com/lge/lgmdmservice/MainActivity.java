@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
             JSONObject manifest=new JSONObject(bytes.toString("UTF-8"));String remote=manifest.optString("version","");if(remote.isEmpty())throw new IOException("The update manifest has no version.");
             PackageInfo installed=getPackageManager().getPackageInfo(getPackageName(),0);String current=installed.versionName==null?"":installed.versionName;
             JSONObject detail=new JSONObject();detail.put("id","yw-app-store-self-update");detail.put("name","YW App Store");detail.put("description","Update the YW App Store to the latest release.");detail.put("packageName",getPackageName());detail.put("version",remote);detail.put("sizeBytes",manifest.optLong("sizeBytes",0));detail.put("apkUrl",STORE_UPDATE_APK_URL);
-            boolean newer=isNewer(remote,current);
+            boolean newer=isUpdateAvailable(getPackageName(),remote);
             runOnUiThread(()->{if(!newer)toast("YW App Store is already up to date.");showAppPage(detail);});
         }catch(Exception e){runOnUiThread(()->toast(e.getMessage()==null?"Could not check for an App Store update.":e.getMessage()));}finally{if(connection!=null)connection.disconnect();}},"YW-store-self-update-check").start();
     }
