@@ -20,6 +20,8 @@ import android.widget.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.net.ssl.HttpsURLConnection;
 import org.json.*;
 
@@ -32,6 +34,7 @@ public class MainActivity extends Activity {
     private static final Set<String> downloading=Collections.synchronizedSet(new HashSet<String>());
     private static final Set<String> cancelled=Collections.synchronizedSet(new HashSet<String>());
     private static final Map<String,HttpURLConnection> activeConnections=Collections.synchronizedMap(new HashMap<String,HttpURLConnection>());
+    private static final ExecutorService iconExecutor=Executors.newFixedThreadPool(3);
     private static java.lang.ref.WeakReference<MainActivity> catalogHostRef;
     private final HashMap<String,Boolean> downloadedStateCache=new HashMap<String,Boolean>();
     private final HashMap<String,View> catalogRowViews=new HashMap<String,View>();
@@ -428,7 +431,7 @@ public class MainActivity extends Activity {
             try{int comma=iconUrl.indexOf(',');if(comma>0){byte[] bytes=Base64.decode(iconUrl.substring(comma+1),Base64.DEFAULT);Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);return;}}}catch(Exception ignored){}
         }
         if(iconUrl!=null&&iconUrl.startsWith("https://")){
-            new Thread(()->{HttpsURLConnection connection=null;try{connection=(HttpsURLConnection)new URL(iconUrl).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(10000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);try(InputStream input=connection.getInputStream()){Bitmap bitmap=BitmapFactory.decodeStream(input);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);});}}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}}).start();return;
+            iconExecutor.execute(()->{HttpsURLConnection connection=null;try{connection=(HttpsURLConnection)new URL(iconUrl).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(10000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(false);try(InputStream input=connection.getInputStream()){Bitmap bitmap=BitmapFactory.decodeStream(input);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);});}}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}});return;
         }
         if(!cached.isFile()&&isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));return;}catch(Exception ignored){}}
     }
@@ -472,7 +475,7 @@ public class MainActivity extends Activity {
     }
     private void updateCatalogEmptyState(){if(catalogEmptyView==null)return;boolean any=false;for(View row:catalogRowViews.values())if(row.getVisibility()==View.VISIBLE){any=true;break;}catalogEmptyView.setVisibility(any?View.GONE:View.VISIBLE);}
     private void refreshCatalogPreferencesInPlace(){if(catalogApps==null||catalogRowViews.isEmpty())return;boolean showInstalled=prefs().getBoolean("show_installed",true),showDescriptions=prefs().getBoolean("show_descriptions",true);for(int i=0;i<catalogApps.length();i++){JSONObject app=catalogApps.optJSONObject(i);if(app==null)continue;String pkg=app.optString("packageName","");View row=catalogRowViews.get(pkg);if(row!=null)row.setVisibility(isInstalled(pkg)&&!showInstalled?View.GONE:View.VISIBLE);TextView description=catalogDescriptionViews.get(pkg);if(description!=null)description.setVisibility(showDescriptions?View.VISIBLE:View.GONE);}updateCatalogEmptyState();refreshVisibleCatalogStates();}
-    private void restoreCatalogFocusNow(){if(!"app".equals(catalogFocusTarget)){if("refresh".equals(catalogFocusTarget)&&refreshFocusView!=null){refreshFocusView.requestFocus();return;}if("settings".equals(catalogFocusTarget)&&settingsFocusView!=null){settingsFocusView.requestFocus();return;}}View row=catalogRowViews.get(catalogFocusedPackage);if(row==null&&!catalogRowViews.isEmpty()){for(View candidate:catalogRowViews.values())if(candidate.getVisibility()==View.VISIBLE){row=candidate;break;}}if(row!=null&&row.isFocusable()){row.requestFocus();return;}if(catalogFocusedPackage==null)focusFirst();}
+    private void restoreCatalogFocusNow(){if(!"app".equals(catalogFocusTarget)){if("refresh".equals(catalogFocusTarget)&&refreshFocusView!=null){refreshFocusView.requestFocus();return;}if("settings".equals(catalogFocusTarget)&&settingsFocusView!=null){settingsFocusView.requestFocus();return;}}View row=catalogRowViews.get(catalogFocusedPackage);if(row!=null&&row.getVisibility()!=View.VISIBLE)row=null;if(row==null&&!catalogRowViews.isEmpty()){for(View candidate:catalogRowViews.values())if(candidate.getVisibility()==View.VISIBLE){row=candidate;break;}}if(row!=null&&row.isFocusable(){row.requestFocus();return;}if(catalogFocusedPackage==null)focusFirst();}
     private void restoreCatalogFocusDelayed(long delay){if(pageScroll==null)return;pageScroll.scrollTo(0,catalogScrollY);restoreCatalogFocusNow();}
     private void focusFirst(){if(content==null)return;content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);content.post(()->{if(content==null)return;View first=findButtonFocusable(content);if(first==null)first=findFocusable(content);if(first!=null){first.setFocusable(true);first.requestFocus();}});}
     private View findButtonFocusable(ViewGroup g){for(int i=0;i<g.getChildCount();i++){View v=g.getChildAt(i);if(v instanceof Button&&v.isFocusable()&&v.getVisibility()==View.VISIBLE)return v;if(v instanceof ViewGroup){View f=findButtonFocusable((ViewGroup)v);if(f!=null)return f;}}return null;}
