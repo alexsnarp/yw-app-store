@@ -306,7 +306,7 @@ public class MainActivity extends Activity {
         TextView meta=text("Version  "+(version.isEmpty()?"—":version)+"  ·  Size  "+(size>0?formatSize(size):"—"),12,MUTED,false);meta.setGravity(Gravity.CENTER);LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,-2);ml.topMargin=dp(9);panel.addView(meta,ml);
         downloadLabel=text("",12,BLUE,true);downloadLabel.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(-1,-2);dl.topMargin=dp(4);panel.addView(downloadLabel,dl);
         downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);downloadProgress.setMax(100);downloadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));downloadProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xffe8edf5));downloadProgress.setMinimumHeight(dp(6));downloadProgress.setVisibility(View.GONE);LinearLayout.LayoutParams pl=new LinearLayout.LayoutParams(-1,dp(6));pl.topMargin=dp(6);panel.addView(downloadProgress,pl);
-        downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);downloadActions.setOrientation(LinearLayout.VERTICAL);LinearLayout.LayoutParams al=new LinearLayout.LayoutParams(-1,-2);al.topMargin=dp(7);panel.addView(downloadActions,al);
+        downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);downloadActions.setOrientation(LinearLayout.VERTICAL);LinearLayout.LayoutParams al=new LinearLayout.LayoutParams(-1,-2);al.topMargin=dp(7);panel.addView(downloadActions,al);buildInstallWaitPanel(panel);
         boolean isStoreUpdate="yw-app-store-self-update".equals(app.optString("id",""));boolean hasLaunchScreen=installed&&getPackageManager().getLaunchIntentForPackage(pkg)!=null;
         if(isStoreUpdate){if(updateAvailable){Button update=actionButton("Download update",true);update.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,update,null);}else{TextView current=text("This version is already up to date.",13,GREEN,true);current.setGravity(Gravity.CENTER);downloadActions.addView(current,new LinearLayout.LayoutParams(-1,dp(40)));}}
         else if(installed){
@@ -457,10 +457,82 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed(){if(detailsHost){restoreCatalogHostFocusBeforeReturn();if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}if(settingsHost&&"settings".equals(currentScreen)){if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}if(settingsHost&&"details".equals(currentScreen)){returnToCatalog();return;}if("settings".equals(currentScreen)){returnFromSettings();return;}if("contacts_help".equals(currentScreen)){returnFromContactsHelp();return;}if("complete".equals(currentScreen)){if(selectedApp!=null)showAppPage(selectedApp);else returnToCatalog();return;}if("details".equals(currentScreen)){returnToCatalog();return;}super.onBackPressed();}
     private void restoreCatalogHostFocusBeforeReturn(){try{MainActivity host=catalogHostRef==null?null:catalogHostRef.get();if(host==null||host.catalogRowViews==null)return;host.catalogFocusTarget="app";View row=host.catalogRowViews.get(host.catalogFocusedPackage);if(row!=null&&row.isFocusable())row.requestFocus();}catch(Exception ignored){}}
     private String urlSafe(String s){return s.replaceAll("[^A-Za-z0-9._-]","_");}
-    private void showInstallWait(String title,String message){if(installWaitDialog!=null&&installWaitDialog.isShowing()){installWaitTitle.setText(title);installWaitMessage.setText(message);return;}LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER_HORIZONTAL);panel.setPadding(dp(24),dp(22),dp(24),dp(22));GradientDrawable bg=new GradientDrawable();bg.setColor(Color.WHITE);bg.setCornerRadius(dp(18));bg.setStroke(dp(1),EDGE);panel.setBackground(bg);ProgressBar spinner=new ProgressBar(this);spinner.setIndeterminate(true);panel.addView(spinner,new LinearLayout.LayoutParams(dp(42),dp(42)));installWaitTitle=new TextView(this);installWaitTitle.setText(title);installWaitTitle.setTextColor(INK);installWaitTitle.setTextSize(17);installWaitTitle.setTypeface(Typeface.DEFAULT,Typeface.BOLD);installWaitTitle.setGravity(Gravity.CENTER);LinearLayout.LayoutParams titleLp=new LinearLayout.LayoutParams(-1,-2);titleLp.topMargin=dp(14);panel.addView(installWaitTitle,titleLp);installWaitMessage=new TextView(this);installWaitMessage.setText(message);installWaitMessage.setTextColor(MUTED);installWaitMessage.setTextSize(13);installWaitMessage.setGravity(Gravity.CENTER);LinearLayout.LayoutParams messageLp=new LinearLayout.LayoutParams(-1,-2);messageLp.topMargin=dp(7);panel.addView(installWaitMessage,messageLp);installWaitDialog=new Dialog(this);installWaitDialog.setContentView(panel);installWaitDialog.setCancelable(false);installWaitDialog.setCanceledOnTouchOutside(false);installWaitDialog.show();Window window=installWaitDialog.getWindow();if(window!=null){window.setBackgroundDrawableResource(android.R.color.transparent);window.setLayout(Math.min(dp(320),getResources().getDisplayMetrics().widthPixels-dp(36)),-2);}}
-    private void dismissInstallWait(){if(installWaitDialog!=null){try{installWaitDialog.dismiss();}catch(Exception ignored){}installWaitDialog=null;installWaitTitle=null;installWaitMessage=null;}}
-    private void syncInstallWaitState(){String state=prefs().getString("install_wait_state","");if("preparing".equals(state))showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");else if("awaiting_confirmation".equals(state))showInstallWait("Finishing installation","Android is processing the app. Please wait…");else dismissInstallWait();}
-    private void installApk(File file,String pkg,String version){if(file==null||!file.isFile()){toast("Downloaded APK was not found.");return;}String existing=prefs().getString("install_wait_state","");if(!existing.isEmpty()){toast("An installation is already in progress.");return;}showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");prefs().edit().putString("install_wait_state","preparing").putString("install_wait_package",pkg).putString("install_wait_version",version==null?"":version).apply();new Thread(()->{PackageInstaller.Session session=null;try{int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(file.getAbsolutePath(),signatureFlags);if(file.length()<1024||archive==null||!pkg.equals(archive.packageName))throw new IOException("Downloaded APK is invalid or belongs to another app.");if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded APK version does not match the selected catalog version.");if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("APK signing certificate does not match the installed app.");}runOnUiThread(()->showInstallWait("Sending app to Android","Please wait while Android prepares the installation…"));PackageInstaller installer=getPackageManager().getPackageInstaller();PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);params.setAppPackageName(pkg);params.setSize(file.length());int id=installer.createSession(params);session=installer.openSession(id);try(InputStream in=new FileInputStream(file);OutputStream out=session.openWrite("base.apk",0,-1)){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)out.write(b,0,n);session.fsync(out);}Intent callback=new Intent(this,InstallStatusReceiver.class);callback.setAction("com.lge.lginstallservies.INSTALL_STATUS."+id);callback.putExtra("yw_package_name",pkg);callback.putExtra("yw_version",version);int flags=PendingIntent.FLAG_UPDATE_CURRENT;if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;PendingIntent pi=PendingIntent.getBroadcast(this,id,callback,flags);prefs().edit().putString("install_wait_state","awaiting_confirmation").apply();runOnUiThread(()->showInstallWait("Opening Android installer","The system confirmation is about to appear…"));session.commit(pi.getIntentSender());session.close();session=null;}catch(Exception e){if(session!=null)try{session.abandon();}catch(Exception ignored){}prefs().edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").apply();runOnUiThread(()->{dismissInstallWait();toast("Couldn't start the installation: "+(e.getMessage()==null?"Please try again.":e.getMessage()));});}},"YW-prepare-install-"+urlSafe(pkg)).start();}
+    private void showInstallWait(String title,String message){
+        if(installWaitPanel==null||installWaitPanel.getParent()==null)return;
+        installWaitPanel.setVisibility(View.VISIBLE);
+        installWaitSpinner.setVisibility(View.VISIBLE);
+        installWaitTitle.setText(title);
+        installWaitMessage.setText(message);
+        installWaitCancelButton.setVisibility(View.VISIBLE);
+    }
+    private void dismissInstallWait(){if(installWaitPanel!=null)installWaitPanel.setVisibility(View.GONE);}
+    private void syncInstallWaitState(){
+        String state=prefs().getString("install_wait_state","");
+        if("preparing".equals(state))showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");
+        else if("awaiting_confirmation".equals(state))showInstallWait("Waiting for confirmation","Wait here to confirm the installation when Android opens its confirmation screen.");
+        else dismissInstallWait();
+    }
+    private void cancelInstallWait(){
+        int sessionId=prefs().getInt("install_wait_session_id",-1);
+        if(sessionId>=0){try{getPackageManager().getPackageInstaller().abandonSession(sessionId);}catch(Exception ignored){}}
+        prefs().edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").remove("install_wait_session_id").apply();
+        dismissInstallWait();
+        toast("Installation wait canceled. If Android's confirmation is open, cancel it there too.");
+    }
+    private void buildInstallWaitPanel(LinearLayout parent){
+        installWaitPanel=new LinearLayout(this);installWaitPanel.setOrientation(LinearLayout.VERTICAL);
+        installWaitPanel.setPadding(dp(12),dp(10),dp(12),dp(8));installWaitPanel.setBackground(shape(PANEL));
+        LinearLayout.LayoutParams waitLp=new LinearLayout.LayoutParams(-1,-2);waitLp.topMargin=dp(8);parent.addView(installWaitPanel,waitLp);
+        LinearLayout statusLine=new LinearLayout(this);statusLine.setGravity(Gravity.CENTER_VERTICAL);
+        installWaitPanel.addView(statusLine,new LinearLayout.LayoutParams(-1,-2));
+        installWaitSpinner=new ProgressBar(this);installWaitSpinner.setIndeterminate(true);
+        statusLine.addView(installWaitSpinner,new LinearLayout.LayoutParams(dp(28),dp(28)));
+        LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams copyLp=new LinearLayout.LayoutParams(0,-2,1);copyLp.leftMargin=dp(10);statusLine.addView(copy,copyLp);
+        installWaitTitle=text("Preparing installer",14,INK,true);copy.addView(installWaitTitle);
+        installWaitMessage=text("Please wait…",12,MUTED,false);LinearLayout.LayoutParams msgLp=new LinearLayout.LayoutParams(-1,-2);msgLp.topMargin=dp(2);copy.addView(installWaitMessage,msgLp);
+        installWaitCancelButton=actionButton("Cancel",false);LinearLayout.LayoutParams cancelLp=new LinearLayout.LayoutParams(dp(112),dp(40));cancelLp.gravity=Gravity.RIGHT;cancelLp.topMargin=dp(7);installWaitPanel.addView(installWaitCancelButton,cancelLp);
+        installWaitCancelButton.setOnClickListener(v->cancelInstallWait());installWaitPanel.setVisibility(View.GONE);
+    }
+    private void installApk(File file,String pkg,String version){
+        if(file==null||!file.isFile()){toast("Downloaded APK was not found.");return;}
+        String existing=prefs().getString("install_wait_state","");
+        if(!existing.isEmpty()){toast("An installation is already in progress.");return;}
+        prefs().edit().putString("install_wait_state","preparing").putString("install_wait_package",pkg)
+                .putString("install_wait_version",version==null?"":version).putInt("install_wait_session_id",-1).apply();
+        showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");
+        new Thread(()->{
+            PackageInstaller.Session session=null;int sessionId=-1;
+            try{
+                int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;
+                PackageInfo archive=getPackageManager().getPackageArchiveInfo(file.getAbsolutePath(),signatureFlags);
+                if(file.length()<1024||archive==null||!pkg.equals(archive.packageName))throw new IOException("Downloaded APK is invalid or belongs to another app.");
+                if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded APK version does not match the selected catalog version.");
+                if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("APK signing certificate does not match the installed app.");}
+                runOnUiThread(()->showInstallWait("Sending app to Android","Please wait while Android prepares the installation…"));
+                PackageInstaller installer=getPackageManager().getPackageInstaller();
+                PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                params.setAppPackageName(pkg);params.setSize(file.length());sessionId=installer.createSession(params);
+                prefs().edit().putInt("install_wait_session_id",sessionId).apply();
+                session=installer.openSession(sessionId);
+                try(InputStream in=new FileInputStream(file);OutputStream out=session.openWrite("base.apk",0,-1)){
+                    byte[] buffer=new byte[65536];int count;while((count=in.read(buffer))!=-1)out.write(buffer,0,count);session.fsync(out);
+                }
+                Intent callback=new Intent(this,InstallStatusReceiver.class);callback.setAction("com.lge.lginstallservies.INSTALL_STATUS."+sessionId);
+                callback.putExtra("yw_package_name",pkg);callback.putExtra("yw_version",version);
+                int flags=PendingIntent.FLAG_UPDATE_CURRENT;if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;
+                PendingIntent pending=PendingIntent.getBroadcast(this,sessionId,callback,flags);
+                prefs().edit().putString("install_wait_state","awaiting_confirmation").apply();
+                runOnUiThread(()->showInstallWait("Opening Android installer","Wait here to confirm the installation when Android opens its confirmation screen."));
+                session.commit(pending.getIntentSender());session.close();session=null;
+            }catch(Exception error){
+                if(session!=null)try{session.abandon();}catch(Exception ignored){}
+                if(sessionId>=0)try{getPackageManager().getPackageInstaller().abandonSession(sessionId);}catch(Exception ignored){}
+                prefs().edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").remove("install_wait_session_id").apply();
+                runOnUiThread(()->{dismissInstallWait();toast("Couldn't start the installation: "+(error.getMessage()==null?"Please try again.":error.getMessage()));});
+            }
+        },"YW-prepare-install-"+urlSafe(pkg)).start();
+    }
     private void openApp(String p){try{Intent i=getPackageManager().getLaunchIntentForPackage(p);if(i!=null)startActivity(i);else toast("No launch screen is available.");}catch(Exception e){toast("Could not open app.");}}
     private void uninstall(String p){try{startActivity(new Intent(Intent.ACTION_DELETE,Uri.parse("package:"+p)));}catch(Exception e){toast("Could not open uninstall screen.");}}
 }
