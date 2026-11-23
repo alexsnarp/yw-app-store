@@ -74,7 +74,7 @@ public final class SettingsActivity extends Activity {
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(7),dp(8),dp(7));row.setBackground(shape(PANEL,EDGE));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(9);parent.addView(row,rp);
         LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.addView(text(title,14,INK,true));TextView sub=text(subtitle,11,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(3);copy.addView(sub,sp);row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
         check.setButtonTintList(android.content.res.ColorStateList.valueOf(BLUE));check.setFocusable(false);check.setClickable(false);check.setScaleX(0.92f);check.setScaleY(0.92f);check.setContentDescription(title);row.addView(check);
-        check.setOnCheckedChangeListener((button,checked)->prefs().edit().putBoolean(key,checked).apply());
+        check.setOnCheckedChangeListener((button,checked)->{prefs().edit().putBoolean(key,checked).apply();DiagnosticLog.record(this,"Setting changed: "+key+"="+checked);});
         row.setFocusable(true);row.setFocusableInTouchMode(false);row.setClickable(true);row.setBackground(focusBackground());row.setContentDescription(title+": "+subtitle);row.setOnClickListener(v->check.setChecked(!check.isChecked()));
     }
     private Button button(String value){Button b=new Button(this);b.setText(value);b.setAllCaps(false);b.setTextSize(13);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setTextColor(0xff123f86);b.setMinHeight(dp(46));b.setPadding(dp(8),dp(3),dp(8),dp(3));b.setBackground(focusBackground());b.setFocusable(true);b.setFocusableInTouchMode(false);return b;}
@@ -99,9 +99,28 @@ public final class SettingsActivity extends Activity {
     }
     private boolean isNewer(String remote,String current){try{String[] a=remote.replaceFirst("^[vV]","").split("[^0-9]+"),b=current.replaceFirst("^[vV]","").split("[^0-9]+");for(int i=0;i<Math.max(a.length,b.length);i++){long x=i<a.length&&!a[i].isEmpty()?Long.parseLong(a[i]):0,y=i<b.length&&!b[i].isEmpty()?Long.parseLong(b[i]):0;if(x!=y)return x>y;}return false;}catch(Exception e){return remote.compareToIgnoreCase(current)>0;}}
     private void exportLogcat(){
-        try{Process process=Runtime.getRuntime().exec(new String[]{"logcat","-d","-v","time","-t","1000"});ByteArrayOutputStream out=new ByteArrayOutputStream();try(InputStream in=process.getInputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}process.waitFor();logExport=out.toString("UTF-8");if(logExport.trim().isEmpty())logExport="No logcat entries were returned. Android may restrict access to system logs.";}
-        catch(Exception e){logExport="Could not read logcat: "+e.getMessage();}
-        Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);save.addCategory(Intent.CATEGORY_OPENABLE);save.setType("text/plain");save.putExtra(Intent.EXTRA_TITLE,"yw-app-store-logcat.txt");try{startActivityForResult(save,9201);}catch(Exception e){message("Could not open the file picker.");}
+        DiagnosticLog.record(this,"Settings: user requested diagnostic export");
+        message("Preparing diagnostic log…");
+        new Thread(()->{
+            String output=DiagnosticLog.export(this);
+            runOnUiThread(()->{
+                logExport=output;
+                Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);save.addCategory(Intent.CATEGORY_OPENABLE);
+                save.setType("text/plain");save.putExtra(Intent.EXTRA_TITLE,"yw-app-store-diagnostics.txt");
+                try{startActivityForResult(save,9201);}catch(Exception error){message("Could not open the file picker.");}
+            });
+        },"YW-settings-diagnostic-export").start();
     }
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==9201&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){try(OutputStream out=getContentResolver().openOutputStream(data.getData())){if(out==null)throw new IOException("Could not open file.");out.write((logExport==null?"":logExport).getBytes("UTF-8"));message("Diagnostic log exported. Upload the text file here.");}catch(Exception e){message("Could not export the diagnostic log.");}finally{logExport=null;}}}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==9201&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){
+            try(OutputStream out=getContentResolver().openOutputStream(data.getData())){
+                if(out==null)throw new IOException("Could not open file.");
+                out.write((logExport==null?"":logExport).getBytes("UTF-8"));
+                DiagnosticLog.record(this,"Diagnostic log exported from Settings");
+                message("Diagnostic log exported. Upload the text file here.");
+            }catch(Exception error){DiagnosticLog.record(this,"Diagnostic export failed: "+error);message("Could not export the diagnostic log.");}
+            finally{logExport=null;}
+        }
+    }
 }
