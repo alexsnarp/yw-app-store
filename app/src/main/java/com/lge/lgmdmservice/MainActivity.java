@@ -389,10 +389,9 @@ public class MainActivity extends Activity {
     }
     private void returnFromContactsHelp(){if(selectedApp!=null)showAppPage(selectedApp);else returnToCatalog();}
     private void addActionPair(LinearLayout parent,Button first,Button second){
-        LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.HORIZONTAL);line.setGravity(Gravity.CENTER);
-        int height=dp(44);LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,height);rowLp.gravity=Gravity.CENTER_HORIZONTAL;rowLp.topMargin=dp(5);parent.addView(line,rowLp);
-        if(first!=null){first.setTextSize(11);first.setMaxLines(1);first.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(second==null?-1:0,height,second==null?0f:1f);if(second!=null)lp.rightMargin=dp(3);line.addView(first,lp);}
-        if(second!=null){second.setTextSize(11);second.setMaxLines(1);second.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,height,1f);lp.leftMargin=dp(3);line.addView(second,lp);}
+        int height=dp(44);
+        if(first!=null){first.setTextSize(11);first.setMaxLines(1);first.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,height,1f);if(parent.getChildCount()>0)lp.leftMargin=dp(3);if(second!=null)lp.rightMargin=dp(3);parent.addView(first,lp);}
+        if(second!=null){second.setTextSize(11);second.setMaxLines(1);second.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,height,1f);lp.leftMargin=dp(3);parent.addView(second,lp);}
     }
     private String downloadProgressKey(String pkg,String version){return "download_"+urlSafe(pkg)+"_"+urlSafe(version);}
     private void restoreActiveDownload(String pkg,String version){
