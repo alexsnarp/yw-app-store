@@ -288,7 +288,7 @@ public class MainActivity extends Activity {
     private void message(String s){if(content==null)return;TextView t=text(s,14,MUTED,false);content.addView(t);}
     private void returnToCatalog(){if(detailsHost){restoreCatalogHostFocusBeforeReturn();if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}if("settings".equals(detailsReturnScreen)){detailsReturnScreen="catalog";currentScreen="catalog";settings();return;}restoreCatalogPosition=true;if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);content.removeAllViews();loadCatalog();}
     private void applyStatus(TextView view,String label,int bg,int fg){if(view==null)return;view.setText(label);GradientDrawable pill=new GradientDrawable();pill.setColor(bg);pill.setCornerRadius(dp(20));view.setBackground(pill);view.setTextColor(fg);}
-    private void refreshVisibleCatalogStates(){if(catalogApps==null)return;for(int i=0;i<catalogApps.length();i++){JSONObject app=catalogApps.optJSONObject(i);if(app==null)continue;String pkg=app.optString("packageName",""),version=app.optString("version","");TextView state=catalogStatusViews.get(pkg);View row=catalogRowViews.get(pkg);if(state==null||row==null)continue;boolean installed=isInstalled(pkg),update=installed&&isUpdateAvailable(pkg,version),downloaded=hasDownloadedApk(pkg,version)&&(!installed||update),active=downloading.contains(pkg)||prefs().getBoolean(downloadProgressKey(pkg,version)+"_active",false);String label=active?"Downloading":downloaded?"Downloaded":update?"Update available":installed?"Installed":"Available";if(active){String key=downloadProgressKey(pkg,version);long bytes=prefs().getLong(key+"_bytes",0),total=prefs().getLong(key+"_total",-1);label=total>0?"Downloading "+(int)Math.min(100,bytes*100/total)+"%":"Downloading";}applyStatus(state,label,active?0xffe8f0ff:downloaded?0xfffff2d6:update?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,active?0xff2459a6:downloaded?0xff9a5a00:update?0xff6941a5:installed?0xff087c58:0xff2459a6);row.setContentDescription(app.optString("name","App")+(active?", downloading":downloaded?", ready to install":update?", update available":installed?", installed":", available"));}}
+    private void refreshVisibleCatalogStates(){if(catalogApps==null)return;for(int i=0;i<catalogApps.length();i++){JSONObject app=catalogApps.optJSONObject(i);if(app==null)continue;refreshOneCatalogStatus(app.optString("packageName",""),app.optString("version",""));}}
     private void showCatalog(JSONArray apps,boolean cached){
         boolean preservePosition=restoreCatalogPosition||(!catalogRowViews.isEmpty()&&"catalog".equals(currentScreen));
         currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);catalogApps=apps;catalogCached=cached;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;content.removeAllViews();
@@ -330,7 +330,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(64),dp(64));iconLp.rightMargin=dp(10);panel.addView(icon,iconLp);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
         LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setGravity(Gravity.TOP);panel.addView(info,new LinearLayout.LayoutParams(0,-2,1));
         TextView heading=text(name,18,INK,true);heading.setMaxLines(2);heading.setEllipsize(android.text.TextUtils.TruncateAt.END);info.addView(heading);
-        TextView state=statusPill(downloaded?"Downloaded":updateAvailable?"Update available":installed?"Installed":"Available",downloaded?0xfffff2d6:updateAvailable?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,downloaded?0xff9a5a00:updateAvailable?0xff6941a5:installed?0xff087c58:0xff2459a6);downloadStatusView=state;
+        boolean installing=pkg.equals(prefs().getString("install_wait_package",""))&&!prefs().getString("install_wait_state","").isEmpty();TextView state=statusPill(installing?"Installing":downloaded?"Downloaded":updateAvailable?"Update available":installed?"Installed":"Available",installing?0xffe8f0ff:downloaded?0xfffff2d6:updateAvailable?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,installing?0xff2459a6:downloaded?0xff9a5a00:updateAvailable?0xff6941a5:installed?0xff087c58:0xff2459a6);downloadStatusView=state;
         LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(4);info.addView(state,stateLp);
         if(!desc.isEmpty()){TextView description=text(desc,12,MUTED,false);description.setMaxLines(3);description.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams descLp=new LinearLayout.LayoutParams(-1,-2);descLp.topMargin=dp(6);info.addView(description,descLp);}
         TextView meta=text("Version "+(version.isEmpty()?"—":version)+"  ·  "+(size>0?formatSize(size):"—"),11,MUTED,false);LinearLayout.LayoutParams metaLp=new LinearLayout.LayoutParams(-1,-2);metaLp.topMargin=dp(6);info.addView(meta,metaLp);
@@ -381,7 +381,13 @@ public class MainActivity extends Activity {
         focusFirst();
     }
     private void returnFromContactsHelp(){if(selectedApp!=null)showAppPage(selectedApp);else returnToCatalog();}
-    private void addActionPair(LinearLayout parent,Button first,Button second){LinearLayout line=new LinearLayout(this);line.setOrientation(LinearLayout.HORIZONTAL);line.setGravity(Gravity.CENTER);LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,dp(48));rowLp.gravity=Gravity.CENTER_HORIZONTAL;rowLp.topMargin=dp(6);parent.addView(line,rowLp);if(first!=null){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(second==null?-1:0,dp(48),second==null?0f:1f);lp.rightMargin=second!=null?dp(4):0;line.addView(first,lp);}if(second!=null){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(48),1f);lp.leftMargin=dp(4);line.addView(second,lp);}}
+    private void addActionPair(LinearLayout parent,Button first,Button second){
+        boolean stack=second!=null&&getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density<360f;
+        LinearLayout line=new LinearLayout(this);line.setOrientation(stack?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);line.setGravity(Gravity.CENTER);
+        int height=dp(48);LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,stack?height*2+dp(5):height);rowLp.gravity=Gravity.CENTER_HORIZONTAL;rowLp.topMargin=dp(6);parent.addView(line,rowLp);
+        if(first!=null){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(stack||second==null?-1:0,height,stack||second==null?0f:1f);if(!stack&&second!=null)lp.rightMargin=dp(4);line.addView(first,lp);}
+        if(second!=null){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(stack?-1:0,height,stack?0f:1f);if(stack)lp.topMargin=dp(5);else lp.leftMargin=dp(4);line.addView(second,lp);}
+    }
     private String downloadProgressKey(String pkg,String version){return "download_"+urlSafe(pkg)+"_"+urlSafe(version);}
     private void restoreActiveDownload(String pkg,String version){
         String key=pkg;String prefKey=downloadProgressKey(pkg,version);
@@ -455,11 +461,12 @@ public class MainActivity extends Activity {
     private void refreshOneCatalogStatus(String pkg,String version){
         TextView state=catalogStatusViews.get(pkg);View row=catalogRowViews.get(pkg);if(state==null||row==null)return;
         boolean installed=isInstalled(pkg),update=installed&&isUpdateAvailable(pkg,version),downloaded=hasDownloadedApk(pkg,version)&&(!installed||update);
+        boolean installing=pkg.equals(prefs().getString("install_wait_package",""))&&!prefs().getString("install_wait_state","").isEmpty();
         boolean active=downloading.contains(pkg)||prefs().getBoolean(downloadProgressKey(pkg,version)+"_active",false);
-        String label=active?"Downloading":downloaded?"Downloaded":update?"Update available":installed?"Installed":"Available";
+        String label=installing?"Installing":active?"Downloading":downloaded?"Downloaded":update?"Update available":installed?"Installed":"Available";
         if(active){String key=downloadProgressKey(pkg,version);long bytes=prefs().getLong(key+"_bytes",0),total=prefs().getLong(key+"_total",-1);label=total>0?"Downloading "+(int)Math.min(100,bytes*100/total)+"%":"Downloading";}
-        applyStatus(state,label,active?0xffe8f0ff:downloaded?0xfffff2d6:update?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,active?0xff2459a6:downloaded?0xff9a5a00:update?0xff6941a5:installed?0xff087c58:0xff2459a6);
-        row.setContentDescription(pkg+(active?", downloading":downloaded?", downloaded":update?", update available":installed?", installed":", available"));
+        applyStatus(state,label,(active||installing)?0xffe8f0ff:downloaded?0xfffff2d6:update?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,(active||installing)?0xff2459a6:downloaded?0xff9a5a00:update?0xff6941a5:installed?0xff087c58:0xff2459a6);
+        row.setContentDescription(pkg+(installing?", installing":active?", downloading":downloaded?", downloaded":update?", update available":installed?", installed":", available"));
     }
     private void restoreCatalogFocusNow(){if(!"app".equals(catalogFocusTarget)){if("refresh".equals(catalogFocusTarget)&&refreshFocusView!=null){refreshFocusView.requestFocus();return;}if("settings".equals(catalogFocusTarget)&&settingsFocusView!=null){settingsFocusView.requestFocus();return;}}View row=catalogRowViews.get(catalogFocusedPackage);if(row!=null&&row.isFocusable()){row.requestFocus();return;}if(catalogFocusedPackage==null)focusFirst();}
     private void restoreCatalogFocusDelayed(long delay){if(pageScroll==null)return;pageScroll.scrollTo(0,catalogScrollY);restoreCatalogFocusNow();}
@@ -642,6 +649,7 @@ public class MainActivity extends Activity {
         if(!existing.isEmpty()){toast("An installation is already in progress.");return;}
         prefs().edit().putString("install_wait_state","preparing").putString("install_wait_package",pkg)
                 .putString("install_wait_version",version==null?"":version).putInt("install_wait_session_id",-1).putBoolean("install_wait_cancel_requested",false).apply();
+        refreshCatalogHost(pkg,version);
         showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");
         new Thread(()->{
             PackageInstaller.Session session=null;int sessionId=-1;
