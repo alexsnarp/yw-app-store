@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     private static final int BG=0xfff5f7fb, PANEL=0xffffffff, EDGE=0xffe1e7f0, BLUE=0xff1769e0, BLUE_DARK=0xff123f86, BLUE_TINT=0xffedf4ff, INK=0xff152238, MUTED=0xff637187, GREEN=0xff087c58, GOLD=0xffffb300;
     private static final Set<String> downloading=Collections.synchronizedSet(new HashSet<String>());
     private static final Set<String> cancelled=Collections.synchronizedSet(new HashSet<String>());
+    private static final Map<String,HttpURLConnection> activeConnections=Collections.synchronizedMap(new HashMap<String,HttpURLConnection>());
     private static java.lang.ref.WeakReference<MainActivity> catalogHostRef;
     private final HashMap<String,Boolean> downloadedStateCache=new HashMap<String,Boolean>();
     private final HashMap<String,View> catalogRowViews=new HashMap<String,View>();
@@ -340,9 +341,9 @@ public class MainActivity extends Activity {
     private void restoreActiveDownload(String pkg,String version){
         String key=pkg;String prefKey=downloadProgressKey(pkg,version);
         long bytes=prefs().getLong(prefKey+"_bytes",0),total=prefs().getLong(prefKey+"_total",-1);
-        downloadLabel.setText(total>0?(int)Math.min(100,bytes*100/total)+"%  ·  "+formatSize(bytes)+" / "+formatSize(total):formatSize(bytes));
+        downloadLabel.setText(total>0?(int)Math.min(100,bytes*100/total)+"%  ·  "+formatSize(bytes):formatSize(bytes));
         downloadProgress.setIndeterminate(total<=0);if(total>0)downloadProgress.setProgress((int)Math.min(100,bytes*100/total));downloadProgress.setVisibility(View.VISIBLE);
-        downloadActions.removeAllViews();Button cancel=actionButton("Cancel",false);cancel.setOnClickListener(v->{cancelled.add(key);cancel.setEnabled(false);cancel.setText("Cancelling…");});addActionPair(downloadActions,cancel,null);
+        downloadActions.removeAllViews();Button cancel=actionButton("Cancel",false);cancel.setOnClickListener(v->{cancelled.add(key);HttpURLConnection active=activeConnections.get(key);if(active!=null)active.disconnect();cancel.setEnabled(false);cancel.setText("Cancelling…");});addActionPair(downloadActions,cancel,null);
     }
     private void showInstallPrompt(File file,String pkg,String version){
         // Keep the user on the same app detail view; only update its status and actions.
