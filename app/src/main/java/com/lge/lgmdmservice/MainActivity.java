@@ -78,7 +78,7 @@ public class MainActivity extends Activity {
     private float dp(float n){return n*getResources().getDisplayMetrics().density;}
     private android.content.SharedPreferences prefs(){return getSharedPreferences(PREF,0);}
     private void toast(String s){if(Looper.myLooper()!=Looper.getMainLooper()){runOnUiThread(()->toast(s));return;}if(messageBanner==null){pendingMessage=s;return;}messageBanner.setText(s);messageBanner.setTextSize(14);messageBanner.setLetterSpacing(0.01f);messageBanner.setIncludeFontPadding(false);messageBanner.setShadowLayer(dp(0.35f),0f,dp(0.25f),0x55334455);messageBanner.setVisibility(View.VISIBLE);messageBanner.setAlpha(0f);messageBanner.setTranslationY(dp(10));messageBanner.animate().alpha(1f).translationY(0f).setDuration(180).start();if(hideMessage!=null)messageHandler.removeCallbacks(hideMessage);hideMessage=()->{if(messageBanner!=null)messageBanner.animate().alpha(0f).translationY(dp(8)).setDuration(160).withEndAction(()->{if(messageBanner!=null){messageBanner.setVisibility(View.GONE);messageBanner.setAlpha(1f);messageBanner.setTranslationY(0f);}}).start();};messageHandler.postDelayed(hideMessage,2200);}
-    @Override public void onCreate(Bundle b){super.onCreate(b);detailsHost=getIntent().hasExtra("yw_detail_json");settingsHost=getIntent().getBooleanExtra("yw_show_settings",false);if(Build.VERSION.SDK_INT>=21){getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);android.transition.TransitionSet sharedEnter=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260);android.transition.TransitionSet sharedReturn=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220);getWindow().setSharedElementEnterTransition(sharedEnter);getWindow().setSharedElementReturnTransition(sharedReturn);}prefs().edit().putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();if(!detailsHost&&!settingsHost){UpdateCheckJobService.schedule(this);}}
+    @Override public void onCreate(Bundle b){super.onCreate(b);detailsHost=getIntent().hasExtra("yw_detail_json");settingsHost=getIntent().getBooleanExtra("yw_show_settings",false);if(Build.VERSION.SDK_INT>=21){getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);android.transition.TransitionSet sharedEnter=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(260);android.transition.TransitionSet sharedReturn=new android.transition.TransitionSet().addTransition(new android.transition.ChangeBounds()).addTransition(new android.transition.ChangeImageTransform()).setDuration(220);getWindow().setSharedElementEnterTransition(sharedEnter);getWindow().setSharedElementReturnTransition(sharedReturn);}DiagnosticLog.record(this,"MainActivity onCreate; details="+detailsHost+", settings="+settingsHost);prefs().edit().putBoolean("main_activity_launched",true).apply();NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(nm!=null)nm.cancel(2301);deviceId=prefs().getString("device_id",null);if(deviceId==null){deviceId=UUID.randomUUID().toString();prefs().edit().putString("device_id",deviceId).apply();}token=prefs().getString("device_token",null);render();if(!detailsHost&&!settingsHost){UpdateCheckJobService.schedule(this);}}
     @Override protected void onStart(){super.onStart();if(!detailsHost)catalogHostRef=new java.lang.ref.WeakReference<MainActivity>(this);prefs().edit().putBoolean("main_activity_launched",true).apply();registerPackageStateReceiver();registerInstallResultReceiver();}
     @Override protected void onStop(){unregisterPackageStateReceiver();unregisterInstallResultReceiver();prefs().edit().putBoolean("main_activity_launched",false).apply();super.onStop();}
     private void registerPackageStateReceiver(){
@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=33)registerReceiver(packageStateReceiver,filter,Context.RECEIVER_EXPORTED);else registerReceiver(packageStateReceiver,filter);packageStateReceiverRegistered=true;
     }
     private void unregisterPackageStateReceiver(){if(packageStateReceiverRegistered){try{unregisterReceiver(packageStateReceiver);}catch(Exception ignored){}packageStateReceiverRegistered=false;packageStateReceiver=null;}}
-    private void registerInstallResultReceiver(){if(installResultReceiverRegistered)return;installResultReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){int status=intent.getIntExtra(PackageInstaller.EXTRA_STATUS,PackageInstaller.STATUS_FAILURE);if(status==PackageInstaller.STATUS_PENDING_USER_ACTION){showInstallWait("Android installer is ready","Confirm the installation in the Android system dialog.");return;}dismissInstallWait();String pkg=intent.getStringExtra("yw_package_name");if(status==PackageInstaller.STATUS_SUCCESS){toast("App installed successfully.");if(selectedApp!=null&&(pkg==null||pkg.equals(selectedApp.optString("packageName",""))))showAppPage(selectedApp);}else{String reason=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);toast("Installation failed"+(reason==null||reason.trim().isEmpty()?".":": "+reason));if(selectedApp!=null&&(pkg==null||pkg.equals(selectedApp.optString("packageName",""))))showAppPage(selectedApp);}}};IntentFilter filter=new IntentFilter("com.lge.lginstallservies.INSTALL_STATUS_CHANGED");if(Build.VERSION.SDK_INT>=33)registerReceiver(installResultReceiver,filter,Context.RECEIVER_NOT_EXPORTED);else registerReceiver(installResultReceiver,filter);installResultReceiverRegistered=true;}
+    private void registerInstallResultReceiver(){if(installResultReceiverRegistered)return;installResultReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){int status=intent.getIntExtra(PackageInstaller.EXTRA_STATUS,PackageInstaller.STATUS_FAILURE);if(status==PackageInstaller.STATUS_PENDING_USER_ACTION){showInstallWait("Android installer is ready","Confirm the installation in the Android system dialog.");return;}dismissInstallWait();String pkg=intent.getStringExtra("yw_package_name");if(status==PackageInstaller.STATUS_SUCCESS){DiagnosticLog.record(MainActivity.this,"Install succeeded: "+pkg);toast("App installed successfully.");if(selectedApp!=null&&(pkg==null||pkg.equals(selectedApp.optString("packageName",""))))showAppPage(selectedApp);}else{String reason=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);DiagnosticLog.record(MainActivity.this,"Install failed: "+pkg+" status="+status+" message="+reason);toast("Installation failed"+(reason==null||reason.trim().isEmpty()?".":": "+reason));if(selectedApp!=null&&(pkg==null||pkg.equals(selectedApp.optString("packageName",""))))showAppPage(selectedApp);}}};IntentFilter filter=new IntentFilter("com.lge.lginstallservies.INSTALL_STATUS_CHANGED");if(Build.VERSION.SDK_INT>=33)registerReceiver(installResultReceiver,filter,Context.RECEIVER_NOT_EXPORTED);else registerReceiver(installResultReceiver,filter);installResultReceiverRegistered=true;}
     private void unregisterInstallResultReceiver(){if(installResultReceiverRegistered){try{unregisterReceiver(installResultReceiver);}catch(Exception ignored){}installResultReceiverRegistered=false;installResultReceiver=null;}}
     @Override protected void onPause(){if("catalog".equals(currentScreen)&&pageScroll!=null)catalogScrollY=pageScroll.getScrollY();super.onPause();}
     @Override protected void onResume(){super.onResume();syncInstallWaitState();token=prefs().getString("device_token",null);if("details".equals(currentScreen)&&selectedApp!=null){showAppPage(selectedApp);}else if("complete".equals(currentScreen)&&selectedApp!=null)showAppPage(selectedApp);else if("catalog".equals(currentScreen)){if(catalogApps==null&&token!=null)loadCatalog();else if(restoreFocusAfterSettings){restoreFocusAfterSettings=false;catalogFocusTarget="app";restoreCatalogPosition=true;if(catalogApps!=null)showCatalog(catalogApps,catalogCached);else restoreCatalogFocusNow();}}}
@@ -187,13 +187,36 @@ public class MainActivity extends Activity {
     }
     private void returnFromSettings(){if(settingsHost){if(Build.VERSION.SDK_INT>=21)finishAfterTransition();else finish();return;}String previous=settingsReturnScreen;catalogScrollY=settingsReturnScrollY;restoreCatalogPosition=true;if("details".equals(previous)&&selectedApp!=null){showAppPage(selectedApp);return;}if(catalogApps!=null){showCatalog(catalogApps,catalogCached);return;}returnToCatalog();}
     private void refreshCatalog(){if(catalogBusy){toast("The catalog is already refreshing.");return;}View focused=getCurrentFocus();if(focused==refreshFocusView)catalogFocusTarget="refresh";else if(catalogFocusedPackage!=null)catalogFocusTarget="app";catalogScrollY=pageScroll.getScrollY();restoreCatalogPosition=true;if(!hasNetwork()){toast("No internet connection.");if(catalogApps!=null)showCatalog(catalogApps,catalogCached);return;}if(catalogApps!=null)showCatalog(catalogApps,catalogCached);else{content.removeAllViews();message("Loading apps…");}loadCatalog();}
-    private void exportLogcat(){String output;try{java.lang.Process process=Runtime.getRuntime().exec(new String[]{"logcat","-d","-v","time","-t","1000"});ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream in=process.getInputStream()){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)bytes.write(buffer,0,n);}process.waitFor();output=bytes.toString("UTF-8");if(output.trim().isEmpty())output="No logcat entries were returned. Android may restrict access to system logs.";}catch(Exception e){output="Could not read logcat: "+e.getMessage();}pendingLogcat=output;Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TITLE,"yw-app-store-logcat.txt");try{startActivityForResult(intent,9201);}catch(Exception e){toast("Could not open the file picker to export the log.");}}
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==9201&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){try(OutputStream out=getContentResolver().openOutputStream(data.getData())){if(out==null)throw new IOException("Could not open selected file.");out.write((pendingLogcat==null?"":pendingLogcat).getBytes("UTF-8"));toast("Diagnostic log exported. You can upload the saved text file here.");}catch(Exception e){toast("Could not export the diagnostic log.");}finally{pendingLogcat=null;}}}
-    
-        private boolean hasNetwork(){return NetworkAccess.isAllowed(this);}
+    private void exportLogcat(){
+        DiagnosticLog.record(this,"User requested diagnostic export");
+        toast("Preparing diagnostic log…");
+        new Thread(()->{
+            String output=DiagnosticLog.export(this);
+            runOnUiThread(()->{
+                pendingLogcat=output;
+                Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("text/plain");intent.putExtra(Intent.EXTRA_TITLE,"yw-app-store-diagnostics.txt");
+                try{startActivityForResult(intent,9201);}catch(Exception error){toast("Could not open the file picker to export the log.");}
+            });
+        },"YW-diagnostic-export").start();
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==9201&&resultCode==RESULT_OK&&data!=null&&data.getData()!=null){
+            try(OutputStream out=getContentResolver().openOutputStream(data.getData())){
+                if(out==null)throw new IOException("Could not open selected file.");
+                out.write((pendingLogcat==null?"":pendingLogcat).getBytes("UTF-8"));
+                DiagnosticLog.record(this,"Diagnostic log exported");
+                toast("Diagnostic log exported. You can upload the saved text file here.");
+            }catch(Exception error){DiagnosticLog.record(this,"Diagnostic export failed: "+error);toast("Could not export the diagnostic log.");}
+            finally{pendingLogcat=null;}
+        }
+    }
+    private boolean hasNetwork(){return NetworkAccess.isAllowed(this);}
     private JSONObject request(String method,String path,JSONObject body,String bearer)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(API+path).openConnection();if(c instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)c);c.setRequestMethod(method);c.setUseCaches(false);c.setRequestProperty("Cache-Control","no-cache, no-store");c.setConnectTimeout(15000);c.setReadTimeout(20000);c.setRequestProperty("Accept","application/json");if(bearer!=null)c.setRequestProperty("Authorization","Bearer "+bearer);if(deviceId!=null&&!deviceId.isEmpty())c.setRequestProperty("X-Device-Id",deviceId);if(body!=null){c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}}int status=c.getResponseCode();InputStream in=status>=200&&status<300?c.getInputStream():c.getErrorStream();ByteArrayOutputStream out=new ByteArrayOutputStream();if(in!=null){try(InputStream x=in){byte[] b=new byte[8192];int n;while((n=x.read(b))!=-1)out.write(b,0,n);}}c.disconnect();String raw=out.toString("UTF-8");JSONObject result=raw.isEmpty()?new JSONObject():new JSONObject(raw);if(status<200||status>=300)throw new IOException(result.optString("error","HTTP "+status));return result;}
     private void loadCatalog(){
         if(token==null||catalogBusy)return;
+        DiagnosticLog.record(this,"Catalog load started; network="+hasNetwork());
         // Restore the last successful catalog before attempting the network. This keeps
         // the library usable offline and lets a stale catalog remain visible during refresh.
         if(catalogApps==null){
@@ -239,12 +262,14 @@ public class MainActivity extends Activity {
                     catalogBusy=false;
                     catalogApps=apps;
                     catalogCached=false;
+                    DiagnosticLog.record(this,"Catalog load succeeded; apps="+apps.length());
                     UpdateChecker.notifyFromCatalog(this,apps);
                     if("catalog".equals(currentScreen))showCatalog(apps,false);
                 });
             }catch(Exception e){
                 runOnUiThread(()->{
                     catalogBusy=false;
+                    DiagnosticLog.record(this,"Catalog load failed: "+e.toString());
                     if(catalogApps==null){
                         content.removeAllViews();
                         message("Could not load apps. Check your connection and try again.");
@@ -283,9 +308,9 @@ public class MainActivity extends Activity {
         refreshVisibleCatalogStates();pageScroll.post(()->{if(preservePosition){restoreCatalogPosition=false;pageScroll.scrollTo(0,catalogScrollY);}restoreCatalogFocusNow();});
     }
     // Same platform shared-element transition pattern for the Settings glyph.
-    private void openSettings(View shared){catalogScrollY=pageScroll.getScrollY();if(catalogFocusedPackage!=null)catalogFocusTarget="app";restoreFocusAfterSettings=true;if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,SettingsActivity.class);intent.putExtra("yw_show_settings",true);startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-settings-icon").toBundle());}else settings();}
+    private void openSettings(View shared){DiagnosticLog.record(this,"Opening Settings");catalogScrollY=pageScroll.getScrollY();if(catalogFocusedPackage!=null)catalogFocusTarget="app";restoreFocusAfterSettings=true;if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,SettingsActivity.class);intent.putExtra("yw_show_settings",true);startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-settings-icon").toBundle());}else settings();}
     // Uses the standard Android shared-element ActivityOptions pattern demonstrated in Google's ActivitySceneTransitionBasic sample: pass the source view and the same transition name used by the destination view.
-    private void openAppDetails(JSONObject app,View shared){if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else showAppPage(app);}
+    private void openAppDetails(JSONObject app,View shared){DiagnosticLog.record(this,"Opening app details: "+app.optString("packageName","unknown"));if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else showAppPage(app);}
     private void showAppPage(JSONObject app){
         if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";
         catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");
@@ -455,6 +480,7 @@ public class MainActivity extends Activity {
         }catch(Exception error){partial.delete();android.util.Log.e("YWAppStore","Download all failed for "+pkg,error);}finally{if(connection!=null)connection.disconnect();prefs().edit().putBoolean(prefKey+"_active",false).apply();final boolean succeeded=ok;runOnUiThread(()->{downloading.remove(key);if(!succeeded)downloadAllFailures++;refreshVisibleCatalogStates();startNextCatalogDownload();});}}, "YW-download-all-"+urlSafe(pkg)).start();
     }
     private void download(String url,String name,String pkg,String version,LinearLayout card,LinearLayout actions){
+        DiagnosticLog.record(this,"Download requested: "+pkg+" version="+version);
         String key=pkg.isEmpty()?name:pkg;
         if(!url.startsWith("https://")){toast("This app isn't available to download right now.");return;}
         if(!hasNetwork()){toast("No internet connection.");return;}
@@ -498,12 +524,13 @@ public class MainActivity extends Activity {
                 if(file.exists()&&!file.delete())throw new IOException("Could not replace the previous APK cache");
                 if(!partial.renameTo(file))throw new IOException("Could not finalize the downloaded APK");
                 synchronized(downloadedStateCache){downloadedStateCache.put(pkg+"|"+version,Boolean.TRUE);}
+                DiagnosticLog.record(this,"Download completed: "+pkg+" bytes="+file.length());
                 prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();
                 runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);if(isCurrentDownload(key))showInstallPrompt(file,pkg,version);refreshCatalogHost();});
             }catch(Exception error){
                 partial.delete();boolean wasCancelled=cancelled.contains(key);
                 prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();
-                android.util.Log.e("YWAppStore","Download failed for "+pkg,error);
+                android.util.Log.e("YWAppStore","Download failed for "+pkg,error);DiagnosticLog.record(this,"Download failed for "+pkg+": "+android.util.Log.getStackTraceString(error));
                 runOnUiThread(()->{
                     downloading.remove(key);cancelled.remove(key);refreshCatalogHost();
                     if(isCurrentDownload(key)){downloadLabel.setText(wasCancelled?"Download canceled":"Download failed — "+(error.getMessage()==null?"try again":error.getMessage()));downloadProgress.setVisibility(View.GONE);downloadActions.removeAllViews();Button retry=actionButton(wasCancelled?"Download again":"Retry",true);retry.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,retry,null);}
@@ -558,6 +585,7 @@ public class MainActivity extends Activity {
         installWaitCancelButton.setOnClickListener(v->cancelInstallWait());installWaitPanel.setVisibility(View.GONE);
     }
     private void installApk(File file,String pkg,String version){
+        DiagnosticLog.record(this,"Install requested: "+pkg+" version="+version);
         if(file==null||!file.isFile()){toast("Downloaded APK was not found.");return;}
         String existing=prefs().getString("install_wait_state","");
         if(!existing.isEmpty()){toast("An installation is already in progress.");return;}
