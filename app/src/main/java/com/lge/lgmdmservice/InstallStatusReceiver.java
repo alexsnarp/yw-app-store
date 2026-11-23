@@ -13,16 +13,29 @@ public class InstallStatusReceiver extends BroadcastReceiver {
         String version=intent.getStringExtra("yw_version");
         android.content.SharedPreferences prefs=context.getSharedPreferences("yw_store",Context.MODE_PRIVATE);
         if(status==PackageInstaller.STATUS_PENDING_USER_ACTION){
+            DiagnosticLog.record(context,"Android requested install confirmation for "+pkg);
             prefs.edit().putString("install_wait_state","awaiting_confirmation").putString("install_wait_package",pkg==null?"":pkg).putString("install_wait_version",version==null?"":version).apply();
+            Intent confirm=intent.getParcelableExtra(Intent.EXTRA_INTENT);
+            if(confirm==null){
+                prefs.edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").remove("install_wait_session_id").apply();
+                broadcastStatus(context,PackageInstaller.STATUS_FAILURE,pkg,"Android did not provide an installation confirmation screen.");
+                DiagnosticLog.record(context,"Install confirmation intent missing for "+pkg);
+                return;
+            }
             broadcastStatus(context,status,pkg,intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
-            Intent confirm=intent.getParcelableExtra(Intent.EXTRA_INTENT);if(confirm!=null){confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);context.startActivity(confirm);}return;
+            confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);context.startActivity(confirm);return;
         }
-        prefs.edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").apply();
+        prefs.edit().remove("install_wait_state").remove("install_wait_package").remove("install_wait_version").remove("install_wait_session_id").apply();
         String message=intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
         if(status==PackageInstaller.STATUS_SUCCESS){
+            DiagnosticLog.record(context,"PackageInstaller reported success for "+pkg);
             deleteInstalledApk(context,pkg,version);
             show(context,pkg);StoreReporter.report(context,pkg,version==null?"":version,"installed");
+        }else if(status==PackageInstaller.STATUS_FAILURE_ABORTED){
+            DiagnosticLog.record(context,"PackageInstaller installation canceled by user for "+pkg);
+            StoreReporter.report(context,pkg,version==null?"":version,"canceled");
         }else{
+            DiagnosticLog.record(context,"PackageInstaller failed for "+pkg+" status="+status+" message="+message);
             showFailure(context,pkg);
             StoreReporter.report(context,pkg,version==null?"":version,"failed");
         }
