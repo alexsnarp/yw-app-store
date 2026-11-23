@@ -287,40 +287,58 @@ public class MainActivity extends Activity {
     // Uses the standard Android shared-element ActivityOptions pattern demonstrated in Google's ActivitySceneTransitionBasic sample: pass the source view and the same transition name used by the destination view.
     private void openAppDetails(JSONObject app,View shared){if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else showAppPage(app);}
     private void showAppPage(JSONObject app){
-        if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");if(!focusPackage.isEmpty())catalogFocusedPackage=focusPackage;
-        currentScreen="details";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);selectedApp=app;content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;downloadStatusView=null;
-        String name=app.optString("name","App"),desc=app.optString("description",""),version=app.optString("version",""),pkg=app.optString("packageName",""),url=app.optString("apkUrl","");long size=app.optLong("sizeBytes",0);boolean installed=isInstalled(pkg);boolean updateAvailable=installed&&isUpdateAvailable(pkg,version);
+        if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";
+        catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");
+        if(!focusPackage.isEmpty())catalogFocusedPackage=focusPackage;
+        currentScreen="details";mainHeader.setVisibility(View.GONE);pageScroll.scrollTo(0,0);selectedApp=app;
+        content.removeAllViews();downloadLabel=null;downloadProgress=null;downloadActions=null;downloadStatusView=null;installWaitPanel=null;
+        String name=app.optString("name","App"),desc=app.optString("description",""),version=app.optString("version",""),pkg=app.optString("packageName",""),url=app.optString("apkUrl","");long size=app.optLong("sizeBytes",0);
+        boolean installed=isInstalled(pkg),updateAvailable=installed&&isUpdateAvailable(pkg,version);
         File savedApk=apkFile(pkg,version);boolean downloaded=isValidDownloadedApk(savedApk,pkg,version)&&(!installed||updateAvailable);
-        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(0,dp(1),dp(5),dp(4));ImageView back=new ImageView(this);back.setImageResource(R.drawable.ic_back);back.setScaleType(ImageView.ScaleType.CENTER_INSIDE);back.setColorFilter(0xff263b59);back.setPadding(0,dp(8),dp(8),dp(8));back.setContentDescription("Back");back.setFocusable(true);back.setClickable(true);back.setBackground(backFocusBackground());back.setOnClickListener(v->returnToCatalog());top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));content.addView(top);
-        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER_HORIZONTAL);panel.setPadding(dp(12),dp(8),dp(12),dp(10));panel.setBackgroundColor(BG);content.addView(panel,new LinearLayout.LayoutParams(-1,-2));
-        ImageView icon=new ImageView(this);if(detailsHost&&Build.VERSION.SDK_INT>=21)icon.setTransitionName("yw-app-icon");icon.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(80),dp(80));ip.bottomMargin=dp(7);panel.addView(icon,ip);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
-        TextView heading=text(name,20,INK,true);heading.setGravity(Gravity.CENTER);heading.setMaxLines(1);heading.setEllipsize(android.text.TextUtils.TruncateAt.END);panel.addView(heading);
-        TextView state=statusPill(downloaded?"Downloaded":updateAvailable?"Update available":installed?"Installed":"Available",downloaded?0xfffff2d6:updateAvailable?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,downloaded?0xff9a5a00:updateAvailable?0xff6941a5:installed?0xff087c58:0xff2459a6);downloadStatusView=state;LinearLayout.LayoutParams statep=new LinearLayout.LayoutParams(-2,-2);statep.topMargin=dp(5);state.setGravity(Gravity.CENTER);panel.addView(state,statep);
-        if(!desc.isEmpty()){TextView description=text(desc,15,MUTED,false);description.setGravity(Gravity.CENTER);description.setMaxLines(2);description.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams dp1=new LinearLayout.LayoutParams(-1,-2);dp1.topMargin=dp(8);panel.addView(description,dp1);}
-        if("smartlist".equalsIgnoreCase(app.optString("id",""))||"com.android.cts.lionscribe.elist".equals(pkg)){
-            LinearLayout warning=new LinearLayout(this);warning.setOrientation(LinearLayout.VERTICAL);warning.setPadding(dp(12),dp(10),dp(12),dp(10));warning.setBackground(shape(PANEL));LinearLayout.LayoutParams warningLp=new LinearLayout.LayoutParams(-1,-2);warningLp.topMargin=dp(12);panel.addView(warning,warningLp);
-            warning.addView(text("Important warning before downloading locations in Smartlist",14,0xff9b3b20,true));
-            TextView warningBody=text("Turn off Sync contacts in Smartlist settings before downloading locations. If it stays on, Smartlist contacts may cause the Contacts app to crash.",13,INK,false);LinearLayout.LayoutParams warningBodyLp=new LinearLayout.LayoutParams(-1,-2);warningBodyLp.topMargin=dp(6);warning.addView(warningBody,warningBodyLp);
-            Button contactsHelp=actionButton("If your contacts are crashing, click here",false);LinearLayout.LayoutParams helpLp=new LinearLayout.LayoutParams(-1,dp(44));helpLp.gravity=Gravity.CENTER_HORIZONTAL;helpLp.topMargin=dp(8);warning.addView(contactsHelp,helpLp);
-            contactsHelp.setOnClickListener(v->showContactsHelpPage());
-        }
-        TextView meta=text("Version  "+(version.isEmpty()?"—":version)+"  ·  Size  "+(size>0?formatSize(size):"—"),12,MUTED,false);meta.setGravity(Gravity.CENTER);LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,-2);ml.topMargin=dp(9);panel.addView(meta,ml);
-        downloadLabel=text("",12,BLUE,true);downloadLabel.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(-1,-2);dl.topMargin=dp(4);panel.addView(downloadLabel,dl);
-        downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);downloadProgress.setMax(100);downloadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));downloadProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xffe8edf5));downloadProgress.setMinimumHeight(dp(6));downloadProgress.setVisibility(View.GONE);LinearLayout.LayoutParams pl=new LinearLayout.LayoutParams(-1,dp(6));pl.topMargin=dp(6);panel.addView(downloadProgress,pl);
-        downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);downloadActions.setOrientation(LinearLayout.VERTICAL);LinearLayout.LayoutParams al=new LinearLayout.LayoutParams(-1,-2);al.topMargin=dp(7);panel.addView(downloadActions,al);buildInstallWaitPanel(panel);
-        boolean isStoreUpdate="yw-app-store-self-update".equals(app.optString("id",""));boolean hasLaunchScreen=installed&&getPackageManager().getLaunchIntentForPackage(pkg)!=null;
-        if(isStoreUpdate){if(updateAvailable){Button update=actionButton("Download update",true);update.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,update,null);}else{TextView current=text("This version is already up to date.",13,GREEN,true);current.setGravity(Gravity.CENTER);downloadActions.addView(current,new LinearLayout.LayoutParams(-1,dp(40)));}}
-        else if(installed){
+        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(0,dp(1),dp(5),dp(4));
+        ImageView back=new ImageView(this);back.setImageResource(R.drawable.ic_back);back.setScaleType(ImageView.ScaleType.CENTER_INSIDE);back.setColorFilter(0xff263b59);back.setPadding(0,dp(8),dp(8),dp(8));back.setContentDescription("Back");back.setFocusable(true);back.setClickable(true);back.setBackground(backFocusBackground());back.setOnClickListener(v->returnToCatalog());
+        top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));content.addView(top);
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.HORIZONTAL);panel.setGravity(Gravity.TOP);panel.setPadding(dp(8),dp(8),dp(8),dp(10));panel.setBackgroundColor(BG);content.addView(panel,new LinearLayout.LayoutParams(-1,-2));
+        ImageView icon=new ImageView(this);if(detailsHost&&Build.VERSION.SDK_INT>=21)icon.setTransitionName("yw-app-icon");icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams iconLp=new LinearLayout.LayoutParams(dp(64),dp(64));iconLp.rightMargin=dp(10);panel.addView(icon,iconLp);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setGravity(Gravity.TOP);panel.addView(info,new LinearLayout.LayoutParams(0,-2,1));
+        TextView heading=text(name,18,INK,true);heading.setMaxLines(2);heading.setEllipsize(android.text.TextUtils.TruncateAt.END);info.addView(heading);
+        TextView state=statusPill(downloaded?"Downloaded":updateAvailable?"Update available":installed?"Installed":"Available",downloaded?0xfffff2d6:updateAvailable?0xfff0eaff:installed?0xffe8f5ef:0xffeaf1ff,downloaded?0xff9a5a00:updateAvailable?0xff6941a5:installed?0xff087c58:0xff2459a6);downloadStatusView=state;
+        LinearLayout.LayoutParams stateLp=new LinearLayout.LayoutParams(-2,-2);stateLp.topMargin=dp(4);info.addView(state,stateLp);
+        if(!desc.isEmpty()){TextView description=text(desc,12,MUTED,false);description.setMaxLines(3);description.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams descLp=new LinearLayout.LayoutParams(-1,-2);descLp.topMargin=dp(6);info.addView(description,descLp);}
+        TextView meta=text("Version "+(version.isEmpty()?"—":version)+"  ·  "+(size>0?formatSize(size):"—"),11,MUTED,false);LinearLayout.LayoutParams metaLp=new LinearLayout.LayoutParams(-1,-2);metaLp.topMargin=dp(6);info.addView(meta,metaLp);
+        downloadLabel=text("",12,BLUE,true);LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(-1,-2);dl.topMargin=dp(5);info.addView(downloadLabel,dl);
+        downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);downloadProgress.setMax(100);downloadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));downloadProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xffe8edf5));downloadProgress.setMinimumHeight(dp(8));downloadProgress.setVisibility(View.GONE);LinearLayout.LayoutParams progressLp=new LinearLayout.LayoutParams(-1,dp(8));progressLp.topMargin=dp(6);info.addView(downloadProgress,progressLp);
+        downloadActions=new LinearLayout(this);downloadActions.setGravity(Gravity.CENTER);downloadActions.setOrientation(LinearLayout.VERTICAL);LinearLayout.LayoutParams actionsLp=new LinearLayout.LayoutParams(-1,-2);actionsLp.topMargin=dp(7);info.addView(downloadActions,actionsLp);
+        buildInstallWaitPanel(info);
+        boolean isStoreUpdate="yw-app-store-self-update".equals(app.optString("id",""));
+        boolean hasLaunchScreen=installed&&getPackageManager().getLaunchIntentForPackage(pkg)!=null;
+        if(isStoreUpdate){
+            if(updateAvailable){Button update=actionButton("Download update",true);update.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,update,null);}
+            else{TextView current=text("This version is already up to date.",12,GREEN,true);current.setGravity(Gravity.CENTER);downloadActions.addView(current,new LinearLayout.LayoutParams(-1,dp(40)));}
+        }else if(installed){
             Button remove=actionButton("Uninstall",false);remove.setOnClickListener(v->uninstall(pkg));
             if(hasLaunchScreen){Button open=actionButton("Open app",true);open.setOnClickListener(v->openApp(pkg));addActionPair(downloadActions,open,remove);}
-            else if(!downloaded&&!updateAvailable){addActionPair(downloadActions,remove,null);}
+            else if(!downloaded&&!updateAvailable)addActionPair(downloadActions,remove,null);
             if(downloaded){Button installUpdate=actionButton("Install update",true);installUpdate.setOnClickListener(v->installApk(savedApk,pkg,version));addActionPair(downloadActions,installUpdate,null);}
             else if(updateAvailable){Button update=actionButton("Download update",false);update.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,update,null);}
-            if(!hasLaunchScreen&&(downloaded||updateAvailable)){addActionPair(downloadActions,remove,null);}
-        }else if(downloaded){Button install=actionButton("Install",true);install.setOnClickListener(v->installApk(savedApk,pkg,version));Button remove=actionButton("Delete download",false);remove.setOnClickListener(v->deleteDownloadedApk(savedApk,pkg,version));addActionPair(downloadActions,install,remove);}
-        else{Button install=actionButton("Download",true);install.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,install,null);}
+            if(!hasLaunchScreen&&(downloaded||updateAvailable))addActionPair(downloadActions,remove,null);
+        }else if(downloaded){
+            Button install=actionButton("Install",true);install.setOnClickListener(v->installApk(savedApk,pkg,version));
+            Button remove=actionButton("Delete download",false);remove.setOnClickListener(v->deleteDownloadedApk(savedApk,pkg,version));addActionPair(downloadActions,install,remove);
+        }else{
+            Button download=actionButton("Download",true);download.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,download,null);
+        }
+        if("smartlist".equalsIgnoreCase(app.optString("id",""))||"com.android.cts.lionscribe.elist".equals(pkg)){
+            LinearLayout warning=new LinearLayout(this);warning.setOrientation(LinearLayout.VERTICAL);warning.setPadding(dp(12),dp(10),dp(12),dp(10));warning.setBackground(shape(PANEL));
+            LinearLayout.LayoutParams warningLp=new LinearLayout.LayoutParams(-1,-2);warningLp.leftMargin=dp(10);warningLp.rightMargin=dp(10);warningLp.topMargin=dp(5);content.addView(warning,warningLp);
+            warning.addView(text("Important warning before downloading locations in Smartlist",14,0xff9b3b20,true));
+            TextView warningBody=text("Turn off Sync contacts in Smartlist settings before downloading locations. If it stays on, Smartlist contacts may cause the Contacts app to crash.",12,INK,false);
+            LinearLayout.LayoutParams warningBodyLp=new LinearLayout.LayoutParams(-1,-2);warningBodyLp.topMargin=dp(5);warning.addView(warningBody,warningBodyLp);
+            Button contactsHelp=actionButton("If your contacts are crashing, click here",false);LinearLayout.LayoutParams helpLp=new LinearLayout.LayoutParams(-1,dp(44));helpLp.topMargin=dp(7);warning.addView(contactsHelp,helpLp);contactsHelp.setOnClickListener(v->showContactsHelpPage());
+        }
         if(downloading.contains(pkg))restoreActiveDownload(pkg,version);
-        focusFirst();
+        syncInstallWaitState();refreshCatalogHost();focusFirst();
     }
     private void showContactsHelpPage(){
         currentScreen="contacts_help";mainHeader.setVisibility(View.GONE);content.removeAllViews();pageScroll.scrollTo(0,0);
