@@ -293,7 +293,7 @@ public class MainActivity extends Activity {
         boolean preservePosition=restoreCatalogPosition||(!catalogRowViews.isEmpty()&&"catalog".equals(currentScreen));
         currentScreen="catalog";mainHeader.setVisibility(View.VISIBLE);catalogApps=apps;catalogCached=cached;selectedApp=null;downloadLabel=null;downloadProgress=null;downloadActions=null;content.removeAllViews();
         long refreshedAt=prefs().getLong("catalog_last_refreshed",0L);String refreshed=relativeRefreshTime(refreshedAt);TextView stamp=text("Updated  ·  "+refreshed,11,MUTED,true);stamp.setPadding(dp(10),dp(1),dp(10),dp(3));LinearLayout.LayoutParams stampLp=new LinearLayout.LayoutParams(-1,-2);stampLp.topMargin=0;content.addView(stamp,stampLp);
-        LinearLayout catalogActions=new LinearLayout(this);catalogActions.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);catalogActions.setPadding(dp(10),0,dp(10),dp(3));Button downloadAll=actionButton("Download all",false);downloadAll.setTextSize(12);LinearLayout.LayoutParams downloadAllLp=new LinearLayout.LayoutParams(dp(116),dp(38));catalogActions.addView(downloadAll,downloadAllLp);downloadAll.setOnClickListener(v->downloadAllApps());content.addView(catalogActions,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout catalogActions=new LinearLayout(this);catalogActions.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);catalogActions.setPadding(dp(10),0,dp(10),dp(3));Button downloadAll=actionButton("Download all",false);downloadAppsButton=downloadAll;downloadAll.setTextSize(12);if(downloadAllActive){downloadAll.setEnabled(false);downloadAll.setText("Downloading apps…");}LinearLayout.LayoutParams downloadAllLp=new LinearLayout.LayoutParams(dp(116),dp(38));catalogActions.addView(downloadAll,downloadAllLp);downloadAll.setOnClickListener(v->downloadAllApps());content.addView(catalogActions,new LinearLayout.LayoutParams(-1,-2));
         catalogRowViews.clear();catalogStatusViews.clear();catalogList=new LinearLayout(this);catalogList.setOrientation(LinearLayout.VERTICAL);catalogList.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);content.addView(catalogList,new LinearLayout.LayoutParams(-1,-2));
         int shown=0;boolean showInstalled=prefs().getBoolean("show_installed",true);
         for(int i=0;i<apps.length();i++){JSONObject a=apps.optJSONObject(i);if(a==null)continue;String pkg=a.optString("packageName",""),version=a.optString("version","");boolean installed=isInstalled(pkg);if(installed&&!showInstalled)continue;
@@ -478,18 +478,57 @@ public class MainActivity extends Activity {
     }
     private void startNextCatalogDownload(){
         JSONObject app=downloadAllQueue.poll();
-        if(app==null){downloadAllActive=false;if(downloadAppsButton!=null){downloadAppsButton.setEnabled(true);downloadAppsButton.setText("Download available apps");}refreshVisibleCatalogStates();toast(downloadAllFailures==0?"All available apps downloaded successfully.": "Bulk download finished with "+downloadAllFailures+" failed item(s).");return;}
-        String pkg=app.optString("packageName",""),version=app.optString("version",""),url=app.optString("apkUrl","");String key=pkg;
+        if(app==null){
+            downloadAllActive=false;
+            if(downloadAppsButton!=null){downloadAppsButton.setEnabled(true);downloadAppsButton.setText("Download all");}
+            refreshVisibleCatalogStates();
+            toast(downloadAllFailures==0?"All available apps downloaded successfully.":"Bulk download finished with "+downloadAllFailures+" failed item(s).");
+            return;
+        }
+        String pkg=app.optString("packageName",""),version=app.optString("version",""),url=app.optString("apkUrl","");
+        String key=pkg;String prefKey=downloadProgressKey(pkg,version);
         if(!downloading.add(key)){startNextCatalogDownload();return;}
-        cancelled.remove(key);String prefKey=downloadProgressKey(pkg,version);prefs().edit().putBoolean(prefKey+"_active",true).putLong(prefKey+"_bytes",0).putLong(prefKey+"_total",-1).apply();refreshVisibleCatalogStates();
-        new Thread(()->{HttpURLConnection connection=null;File file=apkFile(pkg,version),partial=new File(file.getAbsolutePath()+".part");boolean ok=false;try{
-            connection=(HttpURLConnection)new URL(url).openConnection();if(connection instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)connection);connection.setConnectTimeout(30000);connection.setReadTimeout(600000);connection.setRequestProperty("Authorization","Bearer "+token);connection.setRequestProperty("X-Device-Id",deviceId);int status=connection.getResponseCode();if(status<200||status>=300)throw new IOException("HTTP "+status);
-            long total=connection.getContentLength(),done=0;try(InputStream in=connection.getInputStream();FileOutputStream out=new FileOutputStream(partial)){byte[] buffer=new byte[32768];int n;while((n=in.read(buffer))!=-1){out.write(buffer,0,n);done+=n;prefs().edit().putLong(prefKey+"_bytes",done).putLong(prefKey+"_total",total).apply();}}
-            if(partial.length()<1024||(total>0&&done!=total))throw new IOException("Incomplete download");
-            int flags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),flags);if(archive==null||!pkg.equals(archive.packageName)||(!version.isEmpty()&&!version.equals(archive.versionName)))throw new IOException("APK metadata mismatch");
-            if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,flags);if(!sameSigningCertificates(installed,archive))throw new IOException("Signing certificate mismatch");}
-            if(file.exists()&&!file.delete())throw new IOException("Cannot replace cached APK");if(!partial.renameTo(file))throw new IOException("Cannot save downloaded APK");synchronized(downloadedStateCache){downloadedStateCache.put(pkg+"|"+version,Boolean.TRUE);}ok=true;
-        }catch(Exception error){partial.delete();android.util.Log.e("YWAppStore","Download all failed for "+pkg,error);}finally{if(connection!=null)connection.disconnect();prefs().edit().putBoolean(prefKey+"_active",false).apply();final boolean succeeded=ok;runOnUiThread(()->{downloading.remove(key);if(!succeeded)downloadAllFailures++;refreshVisibleCatalogStates();startNextCatalogDownload();});}}, "YW-download-all-"+urlSafe(pkg)).start();
+        cancelled.remove(key);
+        prefs().edit().putBoolean(prefKey+"_active",true).putLong(prefKey+"_bytes",0).putLong(prefKey+"_total",-1).apply();
+        refreshOneCatalogStatus(pkg,version);
+        new Thread(()->{
+            HttpURLConnection connection=null;File file=apkFile(pkg,version),partial=new File(file.getAbsolutePath()+".part");boolean ok=false;
+            try{
+                connection=(HttpURLConnection)new URL(url).openConnection();activeConnections.put(key,connection);
+                if(connection instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)connection);
+                connection.setConnectTimeout(30000);connection.setReadTimeout(120000);
+                connection.setRequestProperty("Authorization","Bearer "+token);connection.setRequestProperty("X-Device-Id",deviceId);
+                int status=connection.getResponseCode();if(status<200||status>=300)throw new IOException("HTTP "+status);
+                long total=connection.getContentLength(),done=0,lastPersist=0,lastUi=0;
+                try(InputStream input=connection.getInputStream();FileOutputStream output=new FileOutputStream(partial)){
+                    byte[] buffer=new byte[65536];int count;
+                    while((count=input.read(buffer))!=-1){
+                        output.write(buffer,0,count);done+=count;long now=System.currentTimeMillis();
+                        if(now-lastPersist>=1000||(total>0&&done==total)){prefs().edit().putLong(prefKey+"_bytes",done).putLong(prefKey+"_total",total).apply();lastPersist=now;}
+                        if(now-lastUi>=500||(total>0&&done==total)){lastUi=now;runOnUiThread(()->refreshCatalogHost(pkg,version));}
+                    }
+                    output.flush();
+                }
+                prefs().edit().putLong(prefKey+"_bytes",done).putLong(prefKey+"_total",total).apply();
+                if(partial.length()<1024||(total>0&&done!=total))throw new IOException("Incomplete download");
+                int flags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;
+                PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),flags);
+                if(archive==null||!pkg.equals(archive.packageName)||(!version.isEmpty()&&!version.equals(archive.versionName)))throw new IOException("APK metadata mismatch");
+                if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,flags);if(!sameSigningCertificates(installed,archive))throw new IOException("Signing certificate mismatch");}
+                if(file.exists()&&!file.delete())throw new IOException("Cannot replace cached APK");
+                if(!partial.renameTo(file))throw new IOException("Cannot save downloaded APK");
+                synchronized(downloadedStateCache){downloadedStateCache.put(pkg+"|"+version,Boolean.TRUE);}
+                DiagnosticLog.record(this,"Bulk download completed: "+pkg+" bytes="+file.length());ok=true;
+            }catch(Exception error){
+                partial.delete();android.util.Log.e("YWAppStore","Download all failed for "+pkg,error);
+                DiagnosticLog.record(this,"Bulk download failed for "+pkg+": "+android.util.Log.getStackTraceString(error));
+            }finally{
+                if(connection!=null)connection.disconnect();activeConnections.remove(key);
+                prefs().edit().putBoolean(prefKey+"_active",false).apply();
+                final boolean succeeded=ok;
+                runOnUiThread(()->{downloading.remove(key);refreshCatalogHost();if(!succeeded)downloadAllFailures++;startNextCatalogDownload();});
+            }
+        },"YW-download-all-"+urlSafe(pkg)).start();
     }
     private void download(String url,String name,String pkg,String version,LinearLayout card,LinearLayout actions){
         DiagnosticLog.record(this,"Download requested: "+pkg+" version="+version);
