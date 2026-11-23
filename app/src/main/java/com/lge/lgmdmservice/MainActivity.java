@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
     private final HashMap<String,View> catalogRowViews=new HashMap<String,View>();
     private final HashMap<String,TextView> catalogStatusViews=new HashMap<String,TextView>();
     private final HashMap<String,TextView> catalogDescriptionViews=new HashMap<String,TextView>();
-    private View catalogEmptyView;
+    private TextView catalogEmptyView;
     private final ArrayDeque<JSONObject> downloadAllQueue=new ArrayDeque<JSONObject>();
     private boolean downloadAllActive;
     private int downloadAllFailures;
