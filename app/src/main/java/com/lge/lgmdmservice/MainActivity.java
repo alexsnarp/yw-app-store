@@ -436,18 +436,62 @@ public class MainActivity extends Activity {
         }catch(Exception error){partial.delete();android.util.Log.e("YWAppStore","Download all failed for "+pkg,error);}finally{if(connection!=null)connection.disconnect();prefs().edit().putBoolean(prefKey+"_active",false).apply();final boolean succeeded=ok;runOnUiThread(()->{downloading.remove(key);if(!succeeded)downloadAllFailures++;refreshVisibleCatalogStates();startNextCatalogDownload();});}}, "YW-download-all-"+urlSafe(pkg)).start();
     }
     private void download(String url,String name,String pkg,String version,LinearLayout card,LinearLayout actions){
-        String key=pkg.isEmpty()?name:pkg;if(!url.startsWith("https://")){toast("This app isn't available to download right now.");return;}if(!hasNetwork()){toast("No internet connection.");return;}if(!downloading.add(key)){toast("This download is already in progress.");return;}cancelled.remove(key);
-        if(downloadLabel==null||downloadProgress==null||downloadActions==null){if(selectedApp!=null)showAppPage(selectedApp);else return;}
+        String key=pkg.isEmpty()?name:pkg;
+        if(!url.startsWith("https://")){toast("This app isn't available to download right now.");return;}
+        if(!hasNetwork()){toast("No internet connection.");return;}
+        if(!downloading.add(key)){toast("This download is already in progress.");return;}
+        cancelled.remove(key);
+        if(downloadLabel==null||downloadProgress==null||downloadActions==null){if(selectedApp!=null)showAppPage(selectedApp);else{downloading.remove(key);return;}}
         prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",true).putLong(downloadProgressKey(pkg,version)+"_bytes",0).putLong(downloadProgressKey(pkg,version)+"_total",-1).apply();
-        downloadLabel.setText("0%  ·  0 KB");downloadProgress.setVisibility(View.VISIBLE);downloadProgress.setIndeterminate(true);downloadActions.removeAllViews();Button cancel=actionButton("Cancel",false);cancel.setOnClickListener(v->{cancelled.add(key);cancel.setEnabled(false);cancel.setText("Cancelling…");});addActionPair(downloadActions,cancel,null);refreshCatalogHost();
-        new Thread(()->{HttpURLConnection c=null;File file=apkFile(pkg.isEmpty()?name:pkg,version);File partial=new File(file.getAbsolutePath()+".part");try{
-            c=(HttpURLConnection)new URL(url).openConnection();if(c instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)c);c.setConnectTimeout(30000);c.setReadTimeout(600000);c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("X-Device-Id",deviceId);int status=c.getResponseCode();if(status<200||status>=300)throw new IOException("Download returned HTTP "+status);
-            long total=c.getContentLength(),done=0;try(InputStream in=c.getInputStream();FileOutputStream out=new FileOutputStream(partial)){byte[] buf=new byte[32768];int n;while((n=in.read(buf))!=-1){if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");out.write(buf,0,n);done+=n;final int pct=total>0?(int)Math.min(100,done*100/total):-1;final long current=done;prefs().edit().putLong(downloadProgressKey(pkg,version)+"_bytes",current).putLong(downloadProgressKey(pkg,version)+"_total",total).apply();runOnUiThread(()->{if(isCurrentDownload(key)){downloadProgress.setIndeterminate(false);if(pct>=0)downloadProgress.setProgress(pct);downloadLabel.setText(pct>=0?pct+"%  ·  "+formatSize(current)+" / "+formatSize(total):formatSize(current));}});}}
-            if(cancelled.contains(key))throw new InterruptedIOException("Download cancelled by user");if(partial.length()<1024)throw new IOException("Downloaded file is incomplete");if(total>0&&done!=total)throw new IOException("Download ended before all bytes arrived");
-            int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),signatureFlags);if(archive==null||!pkg.equals(archive.packageName))throw new IOException("The downloaded APK does not match the catalog package.");if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded version "+archive.versionName+" does not match catalog version "+version+".");if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("The APK is signed with a different certificate from the installed app.");}
-            if(file.exists()&&!file.delete())throw new IOException("Could not replace the previous APK cache");if(!partial.renameTo(file))throw new IOException("Could not finalize the downloaded APK");synchronized(downloadedStateCache){downloadedStateCache.put(pkg+"|"+version,Boolean.TRUE);}
-            prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);if(isCurrentDownload(key))showInstallPrompt(file,pkg,version);refreshCatalogHost();});
-        }catch(Exception e){partial.delete();boolean wasCancelled=cancelled.contains(key);prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);refreshCatalogHost();if(isCurrentDownload(key)){downloadLabel.setText(wasCancelled?"Download cancelled":"Download failed — "+(e.getMessage()==null?"try again":e.getMessage()));downloadProgress.setVisibility(View.GONE);downloadActions.removeAllViews();Button retry=actionButton(wasCancelled?"Download again":"Retry",true);retry.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,retry,null);}if(!wasCancelled)toast(hasNetwork()?"Download failed: "+(e.getMessage()==null?"please try again.":e.getMessage()):"No internet connection.");});}finally{if(c!=null)c.disconnect();}}).start();
+        downloadLabel.setText("0%  ·  0 KB");downloadProgress.setVisibility(View.VISIBLE);downloadProgress.setIndeterminate(true);
+        downloadActions.removeAllViews();Button cancel=actionButton("Cancel",false);
+        cancel.setOnClickListener(v->{cancelled.add(key);HttpURLConnection active=activeConnections.get(key);if(active!=null)active.disconnect();cancel.setEnabled(false);cancel.setText("Cancelling…");});
+        addActionPair(downloadActions,cancel,null);refreshCatalogHost();
+        new Thread(()->{
+            HttpURLConnection connection=null;File file=apkFile(pkg.isEmpty()?name:pkg,version);File partial=new File(file.getAbsolutePath()+".part");
+            try{
+                connection=(HttpURLConnection)new URL(url).openConnection();activeConnections.put(key,connection);
+                if(connection instanceof HttpsURLConnection)LegacyTlsCompat.configure(this,(HttpsURLConnection)connection);
+                connection.setConnectTimeout(30000);connection.setReadTimeout(120000);connection.setRequestProperty("Authorization","Bearer "+token);connection.setRequestProperty("X-Device-Id",deviceId);
+                if(cancelled.contains(key))throw new InterruptedIOException("Download canceled");
+                int status=connection.getResponseCode();if(status<200||status>=300)throw new IOException("Download returned HTTP "+status);
+                long total=connection.getContentLength(),done=0,lastPersist=0,lastUi=0;
+                try(InputStream input=connection.getInputStream();FileOutputStream output=new FileOutputStream(partial)){
+                    byte[] buffer=new byte[65536];int count;
+                    while((count=input.read(buffer))!=-1){
+                        if(cancelled.contains(key))throw new InterruptedIOException("Download canceled by user");
+                        output.write(buffer,0,count);done+=count;long now=System.currentTimeMillis();
+                        final long current=done;final int percent=total>0?(int)Math.min(100,done*100/total):-1;
+                        if(now-lastPersist>=1000||(total>0&&done==total)){prefs().edit().putLong(downloadProgressKey(pkg,version)+"_bytes",current).putLong(downloadProgressKey(pkg,version)+"_total",total).apply();lastPersist=now;}
+                        if(now-lastUi>=300||(total>0&&done==total)){lastUi=now;runOnUiThread(()->{if(isCurrentDownload(key)){downloadProgress.setIndeterminate(false);if(percent>=0)downloadProgress.setProgress(percent);downloadLabel.setText(percent>=0?percent+"%  ·  "+formatSize(current):formatSize(current));}refreshCatalogHost();});}
+                    }
+                    output.flush();
+                }
+                prefs().edit().putLong(downloadProgressKey(pkg,version)+"_bytes",done).putLong(downloadProgressKey(pkg,version)+"_total",total).apply();
+                if(cancelled.contains(key))throw new InterruptedIOException("Download canceled by user");
+                if(partial.length()<1024)throw new IOException("Downloaded file is incomplete");
+                if(total>0&&done!=total)throw new IOException("Download ended before all bytes arrived");
+                int signatureFlags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;
+                PackageInfo archive=getPackageManager().getPackageArchiveInfo(partial.getAbsolutePath(),signatureFlags);
+                if(archive==null||!pkg.equals(archive.packageName))throw new IOException("The downloaded APK does not match the catalog package.");
+                if(version!=null&&!version.isEmpty()&&!version.equals(archive.versionName))throw new IOException("Downloaded version "+archive.versionName+" does not match catalog version "+version+".");
+                if(isInstalled(pkg)){PackageInfo installed=getPackageManager().getPackageInfo(pkg,signatureFlags);if(!sameSigningCertificates(installed,archive))throw new IOException("The APK is signed with a different certificate from the installed app.");}
+                if(file.exists()&&!file.delete())throw new IOException("Could not replace the previous APK cache");
+                if(!partial.renameTo(file))throw new IOException("Could not finalize the downloaded APK");
+                synchronized(downloadedStateCache){downloadedStateCache.put(pkg+"|"+version,Boolean.TRUE);}
+                prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();
+                runOnUiThread(()->{downloading.remove(key);cancelled.remove(key);if(isCurrentDownload(key))showInstallPrompt(file,pkg,version);refreshCatalogHost();});
+            }catch(Exception error){
+                partial.delete();boolean wasCancelled=cancelled.contains(key);
+                prefs().edit().putBoolean(downloadProgressKey(pkg,version)+"_active",false).apply();
+                android.util.Log.e("YWAppStore","Download failed for "+pkg,error);
+                runOnUiThread(()->{
+                    downloading.remove(key);cancelled.remove(key);refreshCatalogHost();
+                    if(isCurrentDownload(key)){downloadLabel.setText(wasCancelled?"Download canceled":"Download failed — "+(error.getMessage()==null?"try again":error.getMessage()));downloadProgress.setVisibility(View.GONE);downloadActions.removeAllViews();Button retry=actionButton(wasCancelled?"Download again":"Retry",true);retry.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,retry,null);}
+                    if(!wasCancelled)toast(hasNetwork()?"Download failed: "+(error.getMessage()==null?"please try again.":error.getMessage()):"No internet connection.");
+                });
+            }finally{if(connection!=null)connection.disconnect();activeConnections.remove(key);}
+        },"YW-download-"+urlSafe(pkg)).start();
     }
     private void deleteDownloadedApk(File file,String pkg,String version){if(file==null||!file.isFile()){toast("Downloaded file was not found.");return;}if(!file.delete()){toast("Could not delete the downloaded APK.");return;}File partial=new File(file.getAbsolutePath()+".part");if(partial.exists())partial.delete();synchronized(downloadedStateCache){downloadedStateCache.remove(pkg+"|"+version);}prefs().edit().remove(downloadProgressKey(pkg,version)+"_active").remove(downloadProgressKey(pkg,version)+"_bytes").remove(downloadProgressKey(pkg,version)+"_total").apply();if(selectedApp!=null&&pkg.equals(selectedApp.optString("packageName",""))){showAppPage(selectedApp);toast("Download deleted.");}else{refreshVisibleCatalogStates();toast("Download deleted.");}}
     private File apkFile(String pkg,String version){return new File(getFilesDir(),"yw-"+urlSafe(pkg)+"-"+urlSafe(version)+".apk");}
