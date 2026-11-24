@@ -13,8 +13,8 @@ android {
         // Keep the legacy target level for Android 6 device compatibility.
         targetSdk 22
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-        versionCode 3
-        versionName '2.1'
+        versionCode 4
+        versionName '2.2'
     }
 
     signingConfigs {
