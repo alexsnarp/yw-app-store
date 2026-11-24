@@ -25,6 +25,7 @@ import org.json.JSONObject;
 /** Checks catalog versions against installed packages and posts one notification per update set. */
 public final class UpdateChecker {
     private static final String API = "https://yw-app-store-api.yw-app-installer-store-2026.workers.dev";
+    private static final String STORE_MANIFEST = "https://pub-8cbd861b18084f04b3f76f963c0bea0f.r2.dev/latest.json";
     private static final String CHANNEL = "yw_available_updates";
     private static final int NOTIFICATION_ID = 2302;
 
@@ -33,6 +34,7 @@ public final class UpdateChecker {
     public static void checkNow(Context context) {
         Context app = context.getApplicationContext();
         if (!NetworkAccess.isAllowed(app)) return;
+        checkStoreSelfUpdate(app);
         android.content.SharedPreferences prefs = app.getSharedPreferences("yw_store", Context.MODE_PRIVATE);
         String token = prefs.getString("device_token", null);
         String deviceId = prefs.getString("device_id", null);
@@ -61,6 +63,42 @@ public final class UpdateChecker {
             }
         } catch (Exception ignored) {
             // Background update checks are best-effort; the foreground catalog still reports errors.
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Checks the public R2 release manifest and posts the self-update action notification. */
+    private static void checkStoreSelfUpdate(Context context) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(STORE_MANIFEST).openConnection();
+            if (connection instanceof HttpsURLConnection) {
+                LegacyTlsCompat.configure(context, (HttpsURLConnection) connection);
+            }
+            connection.setConnectTimeout(12000);
+            connection.setReadTimeout(15000);
+            connection.setRequestProperty("Accept", "application/json");
+            int status = connection.getResponseCode();
+            if (status < 200 || status >= 300) return;
+            try (InputStream input = connection.getInputStream();
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                JSONObject manifest = new JSONObject(output.toString("UTF-8"));
+                String remote = manifest.optString("version", "");
+                if (remote.isEmpty()) return;
+                PackageInfo installed = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+                String current = installed.versionName == null ? "0" : installed.versionName;
+                if (isNewer(remote, current)) {
+                    ActivationNotification.showActivationNotification(context);
+                } else {
+                    ActivationNotification.cancel(context);
+                }
+            }
+        } catch (Exception ignored) {
+            // A failed self-update check must not interrupt catalog update checks.
         } finally {
             if (connection != null) connection.disconnect();
         }
