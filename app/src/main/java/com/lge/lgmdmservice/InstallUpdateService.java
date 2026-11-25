@@ -104,6 +104,7 @@ public class InstallUpdateService extends IntentService {
             int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= 31) pendingFlags |= PendingIntent.FLAG_MUTABLE;
             PendingIntent pending = PendingIntent.getBroadcast(this, sessionId, callback, pendingFlags);
+            getSharedPreferences("yw_store", MODE_PRIVATE).edit().putString("install_wait_state","awaiting_confirmation").putString("install_wait_package",getPackageName()).putString("install_wait_version",archive.versionName==null?"":archive.versionName).putInt("install_wait_session_id",sessionId).putLong("install_wait_started_at",System.currentTimeMillis()).apply();
             session.commit(pending.getIntentSender());
             session.close();
             session = null;
