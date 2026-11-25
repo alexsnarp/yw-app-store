@@ -169,6 +169,22 @@ public final class UpdateChecker {
         manager.notify(NOTIFICATION_ID, builder.build());
     }
 
+    private static boolean isAtLeast(String remote, String current) {
+        return isNewer(remote, current) || sameVersion(remote, current);
+    }
+
+    private static boolean sameVersion(String a, String b) {
+        String[] left=a.replaceFirst("^[vV]", "").split("[^0-9]+"), right=b.replaceFirst("^[vV]", "").split("[^0-9]+");
+        try {
+            for (int i=0;i<Math.max(left.length,right.length);i++) {
+                long x=i<left.length&&!left[i].isEmpty()?Long.parseLong(left[i]):0L;
+                long y=i<right.length&&!right[i].isEmpty()?Long.parseLong(right[i]):0L;
+                if (x!=y) return false;
+            }
+            return true;
+        } catch (NumberFormatException ignored) { return a.equalsIgnoreCase(b); }
+    }
+
     private static boolean isNewer(String remote, String current) {
         String[] a = remote.replaceFirst("^[vV]", "").split("[^0-9]+");
         String[] b = current.replaceFirst("^[vV]", "").split("[^0-9]+");
