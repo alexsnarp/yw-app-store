@@ -346,7 +346,7 @@ public class MainActivity extends Activity {
         File savedApk=apkFile(pkg,version);boolean downloaded=isValidDownloadedApk(savedApk,pkg,version)&&(!installed||updateAvailable);
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(0,dp(1),dp(5),dp(4));
         BackGlyph back=new BackGlyph(this);back.setContentDescription("Back");back.setFocusable(true);back.setClickable(true);back.setBackground(backFocusBackground());back.setOnClickListener(v->returnToCatalog());
-        top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));content.addView(top);
+        top.addView(back,new LinearLayout.LayoutParams(dp(50),dp(50)));content.addView(top);
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(smartList?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);panel.setGravity(smartList?Gravity.TOP:Gravity.CENTER_HORIZONTAL);panel.setPadding(dp(8),dp(8),dp(8),dp(8));panel.setBackgroundColor(BG);content.addView(panel,new LinearLayout.LayoutParams(-1,-2));
         ImageView icon=new ImageView(this);if(detailsHost&&Build.VERSION.SDK_INT>=21)icon.setTransitionName("yw-app-icon");icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         LinearLayout.LayoutParams iconLp=smartList?new LinearLayout.LayoutParams(dp(64),dp(64)):new LinearLayout.LayoutParams(dp(76),dp(76));if(smartList)iconLp.rightMargin=dp(10);else iconLp.gravity=Gravity.CENTER_HORIZONTAL;panel.addView(icon,iconLp);loadCatalogIcon(icon,app.optString("iconUrl",""),url,pkg,version);
@@ -402,7 +402,7 @@ public class MainActivity extends Activity {
     private void showContactsHelpPage(){
         currentScreen="contacts_help";mainHeader.setVisibility(View.GONE);root.setBackgroundColor(BG);pageScroll.setBackgroundColor(BG);content.setBackgroundColor(BG);content.removeAllViews();pageScroll.scrollTo(0,0);
         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(0,dp(2),0,dp(8));
-        BackGlyph back=new BackGlyph(this);back.setContentDescription("Back");back.setFocusable(true);back.setClickable(true);back.setBackground(backFocusBackground());back.setOnClickListener(v->returnFromContactsHelp());top.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));
+        BackGlyph back=new BackGlyph(this);back.setContentDescription("Back");back.setFocusable(true);back.setClickable(true);back.setBackground(backFocusBackground());back.setOnClickListener(v->returnFromContactsHelp());top.addView(back,new LinearLayout.LayoutParams(dp(50),dp(50)));
         TextView eyebrow=text("SMARTLIST HELP",13,BLUE,true);eyebrow.setLetterSpacing(0.08f);LinearLayout.LayoutParams eyebrowLp=new LinearLayout.LayoutParams(0,-2,1);eyebrowLp.leftMargin=dp(8);top.addView(eyebrow,eyebrowLp);content.addView(top);
         
         TextView intro=text("If contacts added by Smartlist are causing the Contacts app to crash, follow these steps carefully.",14,MUTED,false);LinearLayout.LayoutParams introLp=new LinearLayout.LayoutParams(-1,-2);introLp.topMargin=dp(8);content.addView(intro,introLp);
