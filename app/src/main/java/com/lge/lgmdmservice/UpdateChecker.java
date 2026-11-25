@@ -91,7 +91,7 @@ public final class UpdateChecker {
                 if (remote.isEmpty()) return;
                 PackageInfo installed = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
                 String current = installed.versionName == null ? "0" : installed.versionName;
-                if (isNewer(remote, current)) {
+                if (isAtLeast(remote, current)) {
                     ActivationNotification.showActivationNotification(context);
                 } else {
                     ActivationNotification.cancel(context);
@@ -115,7 +115,7 @@ public final class UpdateChecker {
             try {
                 PackageInfo installed = context.getPackageManager().getPackageInfo(pkg, 0);
                 String current = installed.versionName;
-                if (current != null && isNewer(remote, current)) updates.put(pkg, remote);
+                if (current != null && isAtLeast(remote, current)) updates.put(pkg, remote);
             } catch (Exception ignored) { }
         }
 
@@ -169,7 +169,7 @@ public final class UpdateChecker {
         manager.notify(NOTIFICATION_ID, builder.build());
     }
 
-    private static boolean isNewer(String remote, String current) {
+    private static boolean isAtLeast(String remote, String current) {
         String[] a = remote.replaceFirst("^[vV]", "").split("[^0-9]+");
         String[] b = current.replaceFirst("^[vV]", "").split("[^0-9]+");
         try {
@@ -181,7 +181,7 @@ public final class UpdateChecker {
         } catch (NumberFormatException ignored) {
             return remote.compareToIgnoreCase(current) > 0;
         }
-        return false;
+        return true;
     }
 
     private static Bitmap loadStoreIcon(Context context) {
