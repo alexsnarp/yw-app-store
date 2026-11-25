@@ -78,7 +78,7 @@ public class MainActivity extends Activity {
     private TextView installWaitTitle,installWaitMessage;
     private ProgressBar installWaitSpinner;
     private Button installWaitCancelButton;
-    private AlertDialog installWaitDialog;\n    private AlertDialog installWaitDialog;
+    private AlertDialog installWaitDialog;
     private BroadcastReceiver installResultReceiver;
     private boolean installResultReceiverRegistered;
 
