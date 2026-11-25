@@ -70,7 +70,7 @@ public class InstallUpdateService extends IntentService {
             PackageInfo installed = pm.getPackageInfo(getPackageName(), flags);
             long installedVersion = Build.VERSION.SDK_INT >= 28 ? installed.getLongVersionCode() : installed.versionCode;
             long updateVersion = Build.VERSION.SDK_INT >= 28 ? archive.getLongVersionCode() : archive.versionCode;
-            if (updateVersion <= installedVersion) {
+            if (updateVersion < installedVersion) {
                 partial.delete();
                 postStatus("Already up to date", "The installed YW App Store is already at the latest version.");
                 return;
