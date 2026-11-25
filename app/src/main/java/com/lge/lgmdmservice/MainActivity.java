@@ -77,7 +77,8 @@ public class MainActivity extends Activity {
     private LinearLayout installWaitPanel;
     private TextView installWaitTitle,installWaitMessage;
     private ProgressBar installWaitSpinner;
-    private Button installWaitCancelButton;\n    private AlertDialog installWaitDialog;
+    private Button installWaitCancelButton;
+    private AlertDialog installWaitDialog;\n    private AlertDialog installWaitDialog;
     private BroadcastReceiver installResultReceiver;
     private boolean installResultReceiverRegistered;
 
@@ -377,6 +378,16 @@ public class MainActivity extends Activity {
         }else{
             Button download=actionButton("Download",true);download.setOnClickListener(v->download(url,name,pkg,version,null,null));addActionPair(downloadActions,download,null);
         }
+        if(installing){
+            downloadActions.setVisibility(View.GONE);
+            ProgressBar sleekInstall=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+            sleekInstall.setIndeterminate(true);
+            if(Build.VERSION.SDK_INT>=21)sleekInstall.setProgressTintList(android.content.res.ColorStateList.valueOf(BLUE));
+            sleekInstall.setMinimumHeight(dp(4));
+            LinearLayout.LayoutParams sleekLp=new LinearLayout.LayoutParams(smartList?-1:dp(230),dp(5));
+            sleekLp.topMargin=dp(14);if(!smartList)sleekLp.gravity=Gravity.CENTER_HORIZONTAL;
+            info.addView(sleekInstall,sleekLp);
+        }
         if(smartList){
             LinearLayout warning=new LinearLayout(this);warning.setOrientation(LinearLayout.VERTICAL);warning.setPadding(dp(10),dp(9),dp(10),dp(9));warning.setBackground(shape(PANEL));
             LinearLayout.LayoutParams warningLp=new LinearLayout.LayoutParams(-1,-2);warningLp.topMargin=dp(8);warningLp.leftMargin=dp(2);warningLp.rightMargin=dp(2);content.addView(warning,warningLp);
@@ -629,18 +640,13 @@ public class MainActivity extends Activity {
     private void restoreCatalogHostFocusBeforeReturn(){try{MainActivity host=catalogHostRef==null?null:catalogHostRef.get();if(host==null||host.catalogRowViews==null)return;host.catalogFocusTarget="app";View row=host.catalogRowViews.get(host.catalogFocusedPackage);if(row!=null&&row.isFocusable())row.requestFocus();}catch(Exception ignored){}}
     private String urlSafe(String s){return s.replaceAll("[^A-Za-z0-9._-]","_");}
     private void showInstallWait(String title,String message){
-        if(installWaitPanel==null||installWaitTitle==null||installWaitMessage==null)return;
-        installWaitTitle.setText(title==null?"Please wait":title);
-        installWaitMessage.setText(message==null?"Please wait…":message);
-        installWaitPanel.setVisibility(View.VISIBLE);
+        if(isFinishing())return;
+        if(installWaitDialog==null){ProgressBar spinner=new ProgressBar(this);LinearLayout wrap=new LinearLayout(this);wrap.setGravity(Gravity.CENTER);wrap.setPadding(dp(12),dp(8),dp(12),dp(8));wrap.addView(spinner,new LinearLayout.LayoutParams(dp(34),dp(34)));installWaitDialog=new AlertDialog.Builder(this).setView(wrap).setCancelable(false).create();}
+        if(installWaitDialog.isShowing())installWaitDialog.dismiss();
+        installWaitDialog.setTitle(title==null?"Please wait":title);installWaitDialog.setMessage(message==null?"Please wait…":message);installWaitDialog.show();
     }
-    private void dismissInstallWait(){if(installWaitPanel!=null)installWaitPanel.setVisibility(View.GONE);}
-    private void syncInstallWaitState(){
-        String state=prefs().getString("install_wait_state","");
-        if("preparing".equals(state))showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");
-        else if("awaiting_confirmation".equals(state)){if("details".equals(currentScreen))showInstallWait("Waiting for confirmation","Please wait for Android to show the installation prompt, then confirm the installation.");}
-        else dismissInstallWait();
-    }
+    private void dismissInstallWait(){if(installWaitDialog!=null&&installWaitDialog.isShowing())installWaitDialog.dismiss();if(installWaitPanel!=null)installWaitPanel.setVisibility(View.GONE);}
+    private void syncInstallWaitState(){String state=prefs().getString("install_wait_state","");if("preparing".equals(state))showInstallWait("Preparing installer","Checking the downloaded app and preparing Android installation…");else dismissInstallWait();}
     private void cancelInstallWait(){
         int sessionId=prefs().getInt("install_wait_session_id",-1);
         if(sessionId>=0){try{getPackageManager().getPackageInstaller().abandonSession(sessionId);}catch(Exception ignored){}}
