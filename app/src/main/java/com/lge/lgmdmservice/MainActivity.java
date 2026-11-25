@@ -333,7 +333,7 @@ public class MainActivity extends Activity {
     // Same platform shared-element transition pattern for the Settings glyph.
     private void openSettings(View shared){DiagnosticLog.record(this,"Opening Settings");catalogScrollY=pageScroll.getScrollY();catalogFocusTarget="app";restoreFocusAfterSettings=true;if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,SettingsActivity.class);intent.putExtra("yw_show_settings",true);startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-settings-icon").toBundle());}else settings();}
     // Uses the standard Android shared-element ActivityOptions pattern demonstrated in Google's ActivitySceneTransitionBasic sample: pass the source view and the same transition name used by the destination view.
-    private void openAppDetails(JSONObject app,View shared){DiagnosticLog.record(this,"Opening app details: "+app.optString("packageName","unknown"));if(Build.VERSION.SDK_INT>=21){Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else showAppPage(app);}
+    private void openAppDetails(JSONObject app,View shared){String pkg=app.optString("packageName","unknown");DiagnosticLog.record(this,"Opening app details: "+pkg);Intent intent=new Intent(this,AppDetailsActivity.class);intent.putExtra("yw_detail_json",app.toString());if(Build.VERSION.SDK_INT>=21&&!"com.lge.ExaltWaze".equals(pkg)){startActivity(intent,ActivityOptions.makeSceneTransitionAnimation(this,shared,"yw-app-icon").toBundle());}else{startActivity(intent);}}
     private void showAppPage(JSONObject app){
         if(!"complete".equals(currentScreen))detailsReturnScreen="settings".equals(currentScreen)?"settings":"catalog";
         catalogScrollY=pageScroll.getScrollY();String focusPackage=app.optString("packageName","");
@@ -450,18 +450,83 @@ public class MainActivity extends Activity {
     private File catalogIconFile(String pkg,String version){File dir=new File(getFilesDir(),"catalog-icons");if(!dir.exists())dir.mkdirs();String safe=(pkg+"_"+version).replaceAll("[^A-Za-z0-9._-]","_");return new File(dir,safe+".png");}
     private void saveCatalogIcon(Bitmap bitmap,String pkg,String version){if(bitmap==null)return;File target=catalogIconFile(pkg,version),temp=new File(target.getParentFile(),target.getName()+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){if(!bitmap.compress(Bitmap.CompressFormat.PNG,100,out))return;out.flush();if(target.exists())target.delete();if(!temp.renameTo(target))temp.delete();}catch(Exception ignored){if(temp.exists())temp.delete();}}
     private void loadCatalogIcon(ImageView view,String iconUrl,String apkUrl,String pkg,String version){
-        view.setTag(pkg);
+        final String key=pkg+"|"+version;
+        view.setTag(key);
+        view.setImageResource(android.R.drawable.sym_def_app_icon);
         File cached=catalogIconFile(pkg,version);
-        if(cached.isFile()&&cached.length()>0){Bitmap bitmap=BitmapFactory.decodeFile(cached.getAbsolutePath());if(bitmap!=null)view.setImageBitmap(bitmap);}
-        else view.setImageResource(android.R.drawable.sym_def_app_icon);
-        // Cache icon bytes separately from catalog JSON, so app artwork remains visible offline.
+        if(cached.isFile()&&cached.length()>0){
+            iconExecutor.execute(()->{
+                Bitmap bitmap=decodeCatalogIconFile(cached);
+                if(bitmap!=null){runOnUiThread(()->{if(key.equals(view.getTag()))view.setImageBitmap(bitmap);});}
+            });
+        }
         if(iconUrl!=null&&iconUrl.startsWith("data:image/")){
-            try{int comma=iconUrl.indexOf(',');if(comma>0){byte[] bytes=Base64.decode(iconUrl.substring(comma+1),Base64.DEFAULT);Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);return;}}}catch(Exception ignored){}
+            if(iconUrl.length()>6*1024*1024)return;
+            iconExecutor.execute(()->{
+                try{
+                    int comma=iconUrl.indexOf(',');
+                    if(comma<=0)return;
+                    byte[] bytes=Base64.decode(iconUrl.substring(comma+1),Base64.DEFAULT);
+                    Bitmap bitmap=decodeCatalogIcon(bytes);
+                    if(bitmap!=null){
+                        saveCatalogIcon(bitmap,pkg,version);
+                        runOnUiThread(()->{if(key.equals(view.getTag()))view.setImageBitmap(bitmap);});
+                    }
+                }catch(Exception ignored){}
+            });
+            return;
         }
         if(iconUrl!=null&&iconUrl.startsWith("https://")){
-            iconExecutor.execute(()->{HttpsURLConnection connection=null;try{connection=(HttpsURLConnection)new URL(iconUrl).openConnection();LegacyTlsCompat.configure(this,connection);connection.setConnectTimeout(10000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(false);try(InputStream input=connection.getInputStream()){Bitmap bitmap=BitmapFactory.decodeStream(input);if(bitmap!=null){saveCatalogIcon(bitmap,pkg,version);runOnUiThread(()->{if(pkg.equals(view.getTag()))view.setImageBitmap(bitmap);});}}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}});return;
+            iconExecutor.execute(()->{
+                HttpsURLConnection connection=null;
+                try{
+                    connection=(HttpsURLConnection)new URL(iconUrl).openConnection();
+                    LegacyTlsCompat.configure(getApplicationContext(),connection);
+                    connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(12000);
+                    connection.setInstanceFollowRedirects(true);
+                    connection.setUseCaches(false);
+                    try(InputStream input=connection.getInputStream();ByteArrayOutputStream output=new ByteArrayOutputStream()){
+                        byte[] buffer=new byte[8192];int count;
+                        while((count=input.read(buffer))!=-1){
+                            if(output.size()+count>5*1024*1024)throw new IOException("Catalog icon is too large");
+                            output.write(buffer,0,count);
+                        }
+                        Bitmap bitmap=decodeCatalogIcon(output.toByteArray());
+                        if(bitmap!=null){
+                            saveCatalogIcon(bitmap,pkg,version);
+                            runOnUiThread(()->{if(key.equals(view.getTag()))view.setImageBitmap(bitmap);});
+                        }
+                    }
+                }catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}
+            });
+            return;
         }
-        if(!cached.isFile()&&isInstalled(pkg)){try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));return;}catch(Exception ignored){}}
+        if(!cached.isFile()&&isInstalled(pkg)){
+            try{view.setImageDrawable(getPackageManager().getApplicationIcon(pkg));}catch(Exception ignored){}
+        }
+    }
+    private Bitmap decodeCatalogIconFile(File file){
+        try{
+            BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+            BitmapFactory.decodeFile(file.getAbsolutePath(),bounds);
+            if(bounds.outWidth<=0||bounds.outHeight<=0)return null;
+            BitmapFactory.Options options=new BitmapFactory.Options();options.inSampleSize=iconSampleSize(bounds.outWidth,bounds.outHeight);
+            return BitmapFactory.decodeFile(file.getAbsolutePath(),options);
+        }catch(Exception ignored){return null;}
+    }
+    private Bitmap decodeCatalogIcon(byte[] bytes){
+        if(bytes==null||bytes.length==0)return null;
+        BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+        BitmapFactory.decodeByteArray(bytes,0,bytes.length,bounds);
+        if(bounds.outWidth<=0||bounds.outHeight<=0)return null;
+        BitmapFactory.Options options=new BitmapFactory.Options();options.inSampleSize=iconSampleSize(bounds.outWidth,bounds.outHeight);
+        return BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);
+    }
+    private int iconSampleSize(int width,int height){
+        int sample=1;
+        while(width/sample>256||height/sample>256)sample*=2;
+        return sample;
     }
     private boolean sameSigningCertificates(PackageInfo installed,PackageInfo archive){
         if(Build.VERSION.SDK_INT>=28){
