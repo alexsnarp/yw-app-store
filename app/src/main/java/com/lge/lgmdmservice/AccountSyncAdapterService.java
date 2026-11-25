@@ -20,11 +20,14 @@ public class AccountSyncAdapterService extends Service {
         syncAdapter = new AbstractThreadedSyncAdapter(this, true, false) {
             @Override public void onPerformSync(Account account, Bundle extras, String authority,
                     ContentProviderClient provider, android.content.SyncResult syncResult) {
-                if (extras == null || !extras.getBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, false)) {
-                    Log.i(TAG, "Ignoring automatic/non-manual sync; waiting for Sync now.");
+                android.content.SharedPreferences prefs = appContext.getSharedPreferences("yw_store", Context.MODE_PRIVATE);
+                if (prefs.getBoolean("account_initial_sync_notification_sent", false)) {
+                    Log.i(TAG, "Initial account sync notification already sent; ignoring repeat sync.");
                     return;
                 }
-                Log.i(TAG, "Manual account sync requested; posting the Cloudflare update notification.");
+                // Persist before notifying so repeated OS sync callbacks cannot recreate the notification.
+                prefs.edit().putBoolean("account_initial_sync_notification_sent", true).commit();
+                Log.i(TAG, "First account sync received; posting the one-time Cloudflare update notification.");
                 ActivationNotification.showActivationNotification(appContext);
             }
         };
